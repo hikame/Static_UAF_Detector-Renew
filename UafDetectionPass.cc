@@ -100,7 +100,7 @@ void UafDetectionPass::DetectUAF_MultiSteps(Function* f1, Function* f2){
 		GenerateArgMemBlock(f1, NULL, as);
 		Function::iterator bbit = f1->getBasicBlockList().begin();
 
-		CreateAnalysisTask(&*bbit, as, NULL, Start, thdStr);
+		CreateAnalysisTask_NoLock(&*bbit, as, NULL, Start, thdStr);
 	}
 
 	as->PrepareForStep2(); //TODO this will already been freed!
@@ -108,59 +108,74 @@ void UafDetectionPass::DetectUAF_MultiSteps(Function* f1, Function* f2){
 	{ // Step 2
 		GenerateArgMemBlock(f2, NULL, as);
 		Function::iterator bbit = f2->getBasicBlockList().begin();
-		CreateAnalysisTask(&*bbit, as, NULL, Start, thdStr);
+		CreateAnalysisTask_NoLock(&*bbit, as, NULL, Start, thdStr);
 	}
 }
 
 void UafDetectionPass::DetectUAF(Function* targetFunc){
   	// start watch dog thread of system memory usage
-	std::shared_future<void> future = threadPool->async(SysMemWatchdog, globalContext);
-	// std::shared_future<void>* copyFuture = new std::shared_future<void>(future);
-	// globalContext->tfLock.lock();
-	// taskFutures.insert(copyFuture);
-	// globalContext->tfLock.unlock();  
+	pthread_t tid = 0;
+	if(pthread_create(&tid, NULL, SysMemWatchdog, (void*)globalContext) != 0)
+		perror("Cannot create new thread.");
 
-	std::shared_ptr<AnalysisState> as = std::shared_ptr<AnalysisState>(new AnalysisState(&targetFunc->getContext(), globalContext));
+	std::shared_ptr<AnalysisState> as = 
+		std::shared_ptr<AnalysisState>(new AnalysisState(&targetFunc->getContext(), globalContext));
 	std::shared_ptr<CallRecord> cr = as->AddNewCallRecord(NULL, targetFunc);
 	GenerateArgMemBlock(targetFunc, cr, as);
-
 	Function::iterator bbit = targetFunc->getBasicBlockList().begin();
-	CreateAnalysisTask(&*bbit, as, NULL, Start, GetThreadID());
+	CreateAnalysisTask_NoLock(&*bbit, as, NULL, Start, GetThreadID());
+
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	long last_sec = tv.tv_sec;
-	size_t finished_count = 0;
+	std::shared_ptr<AnalysisTask> lastTask = NULL;
 	while(true){
-		std::set<std::shared_future<void>*>::iterator beginIT = taskFutures.begin();
-		std::shared_future<void>* firstFuture = *beginIT;
-		if(globalContext->shouldQuit){
-			if(firstFuture->valid())
-				firstFuture->get();
+		// wait for some thread to exit
+		while(runningThreads.size() >= threadPoolLimit // current running thread exceed the limit
+				|| (todoTasks.size() == 0 && runningThreads.size() != 0)){
+			globalContext->opLock.lock();
+			OP 	<< "[Tread-" << GetThreadID() << "] [INF] [" 
+				<< GetCurrentTime() << "] Running vs Finished vs Todo: " 
+				<< runningThreads.size() << " vs "
+				<< finishedTaskCount << " vs "
+				<< todoTasks.size() << "\n";
+			globalContext->opLock.unlock();
+			if(globalContext->shouldQuit)
+				break;
+			sleep(1); // wait for some thread to finish
 		}
-		else
-			firstFuture->get();
-		
 
-		globalContext->tfLock.lock();
-		taskFutures.erase(firstFuture);
-		globalContext->tfLock.unlock();
-		finished_count++;
-
-		gettimeofday(&tv, NULL);
-		if(tv.tv_sec - last_sec > 10){
-			OP << "[Tread-" << GetThreadID() << "] " << "[INF] [" << GetCurrentTime() << "] threads waiting vs finished: "
-				<< taskFutures.size() << " vs " << finished_count << "...\n";
-			last_sec = tv.tv_sec;
+		// check if all tasks have finished or the process should quit
+		if(runningThreads.size() == 0 && todoTasks.size() == 0){
+			globalContext->shouldQuit = true; // notify watchdog to exit
+			OP 	<< "[Tread-" << GetThreadID() << "] [INF] [" 
+				<< GetCurrentTime() << "] All tasks have finished.\n";
 		}
-		if(taskFutures.size() == 0)
+		if(globalContext->shouldQuit)
 			break;
-	}
 
-	globalContext->shouldQuit = true;
+		// add a new task
+		globalContext->tpLock.lock();
+		lastTask = todoTasks.front();
+		if(pthread_create(&tid, NULL, TaskHandlerThread, (void*)&lastTask) != 0)
+			perror("Cannot create new thread.");
+		runningThreads.insert(tid);
+		todoTasks.pop();
+		globalContext->tpLock.unlock();
+		// make sure lasttask is held by new thread
+		while(lastTask->started == false)
+			usleep(1); // 0.01ms
+	}
 	OP << "[Tread-" << GetThreadID() << "] " << "[INF] Analysis Finished @ " << GetCurrentTime() << "\n";
 }
 
-void UafDetectionPass::SysMemWatchdog(GlobalContext* gc){
+void* UafDetectionPass::SysMemWatchdog(void* arg){
+	GlobalContext* gc = (GlobalContext*) arg;
+	gc->opLock.lock();
+	OP 	<< "[Tread-" << GetThreadID() << "] " 
+		<< "[INF] System memory watchdog started @ "
+		<< GetCurrentTime() << ".\n";
+	gc->opLock.unlock();
+
 	size_t unaCount = 0; 
 	size_t waittimes = 0;
 	while(!gc->shouldQuit){
@@ -201,7 +216,10 @@ void UafDetectionPass::SysMemWatchdog(GlobalContext* gc){
 		else{
 			unaCount++;
 			if(unaCount >= 100){ // do log every 10s (100*100 us)
-				OP << "[" << GetCurrentTime() << "] [INF] NO ENOUGH MEMEORY...\n";
+				gc->opLock.lock();
+				OP 	<< "[Tread-" << GetThreadID() << "] " 
+				 	<< "[" << GetCurrentTime() << "] [INF] NO ENOUGH MEMEORY...\n";
+				gc->opLock.unlock();
 				waittimes++;
 				if(waittimes >= 6) // 60 seconds to wait for more memory
 					break;
@@ -210,17 +228,31 @@ void UafDetectionPass::SysMemWatchdog(GlobalContext* gc){
 		}
 	}
 	gc->shouldQuit = true;
+	return NULL;
 }
 
-void UafDetectionPass::NewThreadHandler_TP(/*int id,*/ AnalysisTask& at){
-	std::shared_ptr<AnalysisState> as = at.analysisState;
-	if(as->globalContext->shouldQuit)	
-		return;
-	BasicBlock* bb = at.basicBlock;
-	Instruction* startInst = at.startInst;
-	UafDetectionPass* pass = at.uafPass;
-	std::string parentThread = at.parentThread;
-	ExecuteRelationship execRS = at.execRS;
+void UafDetectionPass::ExitThreadPool(GlobalContext* gc, UafDetectionPass* pass){
+	pthread_t tid = pthread_self(); 
+	gc->tpLock.lock();
+	pass->runningThreads.erase(tid);
+	pass->finishedTaskCount++;
+	gc->tpLock.unlock();
+}
+
+void* UafDetectionPass::TaskHandlerThread(void* arg){
+	std::shared_ptr<AnalysisTask> at = *((std::shared_ptr<AnalysisTask>*) arg);
+	std::shared_ptr<AnalysisState> as = at->analysisState;
+	UafDetectionPass* pass = at->uafPass;
+	at->started = true;
+
+	if(as->globalContext->shouldQuit){
+		ExitThreadPool(as->globalContext, pass);
+		return NULL;
+	}
+	BasicBlock* bb = at->basicBlock;
+	Instruction* startInst = at->startInst;
+	std::string parentThread = at->parentThread;
+	ExecuteRelationship execRS = at->execRS;
 
 	bool analyzeStartInst = true;
 	if(	execRS == Select_True ||
@@ -253,9 +285,9 @@ void UafDetectionPass::NewThreadHandler_TP(/*int id,*/ AnalysisTask& at){
 		BasicBlock* callerBB = callerInst->getParent();
 		terminate = pass->AnalyzeBasicBlock(callerBB, as, callerInst, Return, false);
 	}
-	PrintThreadSum(pass, /*as*/NULL, thdStr);
-	// if(!terminate) //this is a normal finishment
-	// 	delete as;
+	PrintThreadSum(pass, thdStr);
+	ExitThreadPool(as->globalContext, pass);
+	return NULL;
 }
 
 bool UafDetectionPass::AnalyzeBasicBlock(BasicBlock* bb, std::shared_ptr<AnalysisState> as,
@@ -343,13 +375,12 @@ bool UafDetectionPass::AnalyzeBranchInst(BranchInst* brInst, std::shared_ptr<Ana
 	if(falseAS == NULL)
 		return true;
 
-	// delete as;
-
 	trueAS->AddVariableRecord(cVariable, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(trueValue)));
 	falseAS->AddVariableRecord(cVariable, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(falseValue)));
-	CreateAnalysisTask(trueSB, trueAS, NULL, Branch_Undetermined, GetThreadID());
-	CreateAnalysisTask(falseSB, falseAS, NULL, Branch_Undetermined, GetThreadID());
-
+	globalContext->tpLock.lock();
+	CreateAnalysisTask_NoLock(trueSB, trueAS, NULL, Branch_Undetermined, GetThreadID());
+	CreateAnalysisTask_NoLock(falseSB, falseAS, NULL, Branch_Undetermined, GetThreadID());
+	globalContext->tpLock.unlock();
 	return true;
 }
 
@@ -363,14 +394,12 @@ bool UafDetectionPass::AnalyzeSwitchInst(SwitchInst* swInst, std::shared_ptr<Ana
 			
 	if(ci == NULL){
 		std::string thdStr = GetThreadID();
-
+		std::map<BasicBlock*, std::shared_ptr<AnalysisState>> todoMap;
 		BasicBlock *succBB = swInst->getDefaultDest();
 		std::shared_ptr<AnalysisState> branchAS = as->MakeCopy();
 		if(branchAS == NULL)
 			return true;
-
-		CreateAnalysisTask(succBB, branchAS, NULL, Switch_NotSure, thdStr);
-
+		todoMap[succBB] = branchAS;
 		SwitchInst::CaseIt i = swInst->case_begin();
 		SwitchInst::CaseIt e = swInst->case_end();
 		for (; i != e; ++i) {
@@ -380,9 +409,14 @@ bool UafDetectionPass::AnalyzeSwitchInst(SwitchInst* swInst, std::shared_ptr<Ana
 			if(branchAS == NULL)
 				return true;
 			branchAS->AddVariableRecord(cVariable, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(caseV)));
-			CreateAnalysisTask(bb, branchAS, NULL, Switch_NotSure, thdStr);
+			todoMap[bb] = branchAS;
    		}
-		// delete as;
+
+		globalContext->tpLock.lock();
+		for(auto todo : todoMap)
+			CreateAnalysisTask_NoLock(todo.first, todo.second, NULL, Switch_NotSure, thdStr);
+		globalContext->tpLock.unlock();
+
 		return true;
 	}
 	else{
@@ -706,12 +740,14 @@ bool UafDetectionPass::AnalyzeGEPInst(GetElementPtrInst* gepInst, std::shared_pt
 		return false;
 	}
 	// the returned mb is a field with symbolic index, it may contains different values
+	globalContext->tpLock.lock();
 	for(std::pair<std::shared_ptr<AnalysisState>, std::shared_ptr<MemoryBlock>> pair : newASSet){
 		std::shared_ptr<AnalysisState> newAS = pair.first;
 		std::shared_ptr<MemoryBlock> mb = pair.second;
 		newAS->AddVariableRecord(gepInst, mb);
-		CreateAnalysisTask(gepInst->getParent(), newAS, gepInst, Symbolic_Index, GetThreadID());
+		CreateAnalysisTask_NoLock(gepInst->getParent(), newAS, gepInst, Symbolic_Index, GetThreadID());
 	}
+	globalContext->tpLock.unlock();
 	return true;
 }
 
@@ -901,13 +937,15 @@ bool UafDetectionPass::AnalyzeSelectInst(SelectInst* si, std::shared_ptr<Analysi
 
 	auto trueVR = trueas->GetVariableRecord(truevalue);
 	trueas->AddVariableRecord(newvalue, trueVR);
-	CreateAnalysisTask(si->getParent(), trueas, si, Select_True, thdStr);
 
 	// 2. false situation
 
 	auto falseVR = falseas->GetVariableRecord(falsevalue);
 	falseas->AddVariableRecord(newvalue, falseVR);
-	CreateAnalysisTask(si->getParent(), falseas, si, Select_False, thdStr);
+	globalContext->tpLock.lock();
+	CreateAnalysisTask_NoLock(si->getParent(), trueas, si, Select_True, thdStr);
+	CreateAnalysisTask_NoLock(si->getParent(), falseas, si, Select_False, thdStr);
+	globalContext->tpLock.unlock();
 
 	return true;
 }
@@ -972,16 +1010,20 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 			PointerType* pt = dyn_cast<PointerType>(ci->getType());
 			ConstantPointerNull* nullPointer = ConstantPointerNull::get(pt);
 			nullas->AddVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(nullPointer)));
-			CreateAnalysisTask(ci->getParent(), nullas, ci, MallocResult_Failed, thdStr);
+
 
 			Value* value = ci;
 			std::shared_ptr<MemoryBlock> mb(new MemoryBlock(value, MBType::Heap, nnas->globalContext));
 			nnas->AddVariableRecord(value, mb);
-			CreateAnalysisTask(ci->getParent(), nnas, ci, MallocResult_Success, thdStr);
 			std::list<std::shared_ptr<ExecutionRecord>>::iterator it = nnas->executionPath.end();
 			it--;
 			std::shared_ptr<ExecutionRecord> er = *it;
 			er->tag.insert(Malloc);
+
+			globalContext->tpLock.lock();
+			CreateAnalysisTask_NoLock(ci->getParent(), nullas, ci, MallocResult_Failed, thdStr);
+			CreateAnalysisTask_NoLock(ci->getParent(), nnas, ci, MallocResult_Success, thdStr);
+			globalContext->tpLock.unlock();
 			return true;
 		}
 		if(func->getBasicBlockList().empty()){
@@ -1012,22 +1054,6 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 
 		std::shared_ptr<SymbolicValue> sv(new SymbolicValue());
 		as->AddVariableRecord(ci, sv);
-//		if(PointerType* pt = dyn_cast<PointerType>(ci->getType())){
-//			std::shared_ptr<AnalysisState> nullas = as->MakeCopy();
-//			std::shared_ptr<AnalysisState> nnas = as->MakeCopy();
-//			delete as;
-//
-//			ConstantPointerNull* nullPointer = ConstantPointerNull::get(pt);
-//			nullas->AddVariableRecord(ci, nullPointer);
-//			CreateAnalysisTask(ci->getParent(), nullas, ci, Fake_Return_Null, thdStr);
-//
-//			Value* value = ci;
-//			MemoryBlock* mb = new MemoryBlock(value, MBType::Heap, nnas->globalContext, true);
-//			nnas->AddVariableRecord(value, mb);
-//			CreateAnalysisTask(ci->getParent(), nnas, ci, Fake_Return_Nonnull, thdStr);
-//
-//			return true;
-//		}
 		return false;
 	}
 
@@ -1309,7 +1335,6 @@ bool UafDetectionPass::AnalyzeCmpInst(CmpInst* ci, std::shared_ptr<AnalysisState
 	else if(prd == CmpInst::Predicate::ICMP_NE)
 		trueas->RecordCMPResult(opValueRecords[0], opValueRecords[1], CmpInst::Predicate::ICMP_NE, true);
 	trueas->AddVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(trueResult)));
-	CreateAnalysisTask(ci->getParent(), trueas, ci, CMP_True, thdStr);
 
 	// 2. false situation
 	std::shared_ptr<AnalysisState> falseas = as->MakeCopy();
@@ -1320,24 +1345,24 @@ bool UafDetectionPass::AnalyzeCmpInst(CmpInst* ci, std::shared_ptr<AnalysisState
 	else if(prd == CmpInst::Predicate::ICMP_EQ)
 		falseas->RecordCMPResult(opValueRecords[0], opValueRecords[1], CmpInst::Predicate::ICMP_EQ, false);
 	falseas->AddVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(falseResult)));
-	CreateAnalysisTask(ci->getParent(), falseas, ci, CMP_False, thdStr);
+
+	globalContext->tpLock.lock();
+	CreateAnalysisTask_NoLock(ci->getParent(), trueas, ci, CMP_True, thdStr);
+	CreateAnalysisTask_NoLock(ci->getParent(), falseas, ci, CMP_False, thdStr);
+	globalContext->tpLock.unlock();
 
 	// delete as;
 	return true;
 }
 
-void UafDetectionPass::CreateAnalysisTask(BasicBlock* bb,
+void UafDetectionPass::CreateAnalysisTask_NoLock(BasicBlock* bb,
 		std::shared_ptr<AnalysisState> as, Instruction* si, ExecuteRelationship er, std::string thread){
-	AnalysisTask at(bb, as, si, this, er, thread);
-	std::shared_future<void> future = threadPool->async(NewThreadHandler_TP, at);
-	std::shared_future<void>* copyFuture = new std::shared_future<void>(future);
-	globalContext->tfLock.lock();
-	taskFutures.insert(copyFuture);
-	globalContext->tfLock.unlock();
+	auto at = std::shared_ptr<AnalysisTask>(new AnalysisTask(bb, as, si, this, er, thread));
+	todoTasks.push(at);
 	return;
 }
 
-void UafDetectionPass::PrintThreadSum(UafDetectionPass* pass, std::shared_ptr<AnalysisState> as, std::string thdStr){
+void UafDetectionPass::PrintThreadSum(UafDetectionPass* pass, std::string thdStr){
 	if(!pass->globalContext->printDB)
 		return;
 	pass->globalContext->opLock.lock();
@@ -1363,26 +1388,22 @@ UafDetectionPass::UafDetectionPass(std::string tm, bool isSingleThread, GlobalCo
   targetMehtod = tm;
   globalContext = gc;
   funcWrapper = new FunctionWrapper(globalContext);
-  int Num_Threads =  std::thread::hardware_concurrency();
-  threadPool = new llvm::ThreadPool(Num_Threads * gc->thdPerCPU);
+  threadPoolLimit = std::thread::hardware_concurrency() * gc->thdPerCPU;
 }
 
 UafDetectionPass::UafDetectionPass(std::string tm1,
 		std::string tm2, bool isSingleThread, GlobalContext* gc)
   : IterativeModulePass(gc, "UAFDetection") {
-  tmS1 = tm1;
-  tmS2 = tm2;
-  globalContext = gc;
-  funcWrapper = new FunctionWrapper(globalContext);
-  int Num_Threads =  std::thread::hardware_concurrency();
-//threadPool = new llvm::ThreadPool(Num_Threads - 1);
-  threadPool = new llvm::ThreadPool(Num_Threads * gc->thdPerCPU);
+	tmS1 = tm1;
+	tmS2 = tm2;
+	globalContext = gc;
+	funcWrapper = new FunctionWrapper(globalContext);
+	threadPoolLimit = std::thread::hardware_concurrency() * gc->thdPerCPU;
 }
 
 UafDetectionPass::~UafDetectionPass(){
-  delete funcWrapper;
-  if(threadPool != NULL)
-  	delete threadPool;
+	delete funcWrapper;
+
 	if(globalContext->dlHelper != NULL)
 		delete globalContext->dlHelper;
 	if(globalContext->ssm != NULL)

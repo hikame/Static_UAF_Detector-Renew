@@ -11,6 +11,8 @@ public:
 	UafDetectionPass* uafPass;
 	ExecuteRelationship execRS;
 	std::string parentThread;
+	bool started = false;
+	bool finished = false;
 	AnalysisTask(BasicBlock* bb, std::shared_ptr<AnalysisState> as, Instruction* si, UafDetectionPass* up, ExecuteRelationship er, std::string pt):
 		basicBlock(bb), analysisState(as), startInst(si), uafPass(up), execRS(er), parentThread(pt){}
 };

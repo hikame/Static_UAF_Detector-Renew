@@ -240,13 +240,14 @@ int main(int argc, char **argv)
   // Print a stack trace if we signal out.
   sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
-
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
 
-  //KM: The above lines have prepared a debugable environment.
-
-  //KM:cl::ParseCommandLineOptions is designed to be called directly from main, and is used to fill in the values of all of the command line option variables once argc and argv are available
-  //KM: This function seems have nothing to do with the commond line parsing. It is likely to be used when some missing options need to be set to some default value. 
+  //The above lines have prepared a debugable environment.
+  // ParseCommandLineOptions is designed to be called directly from main, 
+  // and is used to fill in the values of all of the command line option variables
+  // once argc and argv are available
+  // This function seems have nothing to do with the commond line parsing. 
+  // It is likely to be used when some missing options need to be set to some default value. 
   cl::ParseCommandLineOptions(argc, argv, "global analysis\n");
   SMDiagnostic Err;
 
@@ -301,9 +302,6 @@ int main(int argc, char **argv)
     GlobalCtx.outputPath = OuputPath.getValue();
 
     OP << "[Tread-" << thdStr << "] @ [" << GetCurrentTime() << "] [INF] Target Method is: " << TargetMethod << "\n";
-    // Changed by Kame Wang 20180903
-    // OP << "[Tread-" << thdStr << "] " << " [INF] Target Method (S1) is: " << tmStep1 << "\n";
-    // OP << "[Tread-" << thdStr << "] " << " [INF] Target Method (S2) is: " << tmStep2 << "\n";
 
     UafDetectionPass* UDPass = NULL;
     if(TargetMethod != "")

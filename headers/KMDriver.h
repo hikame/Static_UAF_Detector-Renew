@@ -115,8 +115,11 @@ struct GlobalContext {
 
   std::string outputPath;
   std::mutex sinkRecordsLock;
+  // mutex lock for log output
   std::mutex opLock;
-  std::mutex tfLock;
+  // mutex lock for thread pool
+  std::mutex tpLock;
+  // mutex lock for get instruction's string
   std::mutex isLock;
   std::vector<std::pair<Value*, std::string>> isMap;
 

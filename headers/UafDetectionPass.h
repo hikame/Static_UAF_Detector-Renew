@@ -5,18 +5,21 @@
 #include "KMDriver.h"
 #include <thread>
 #include <llvm/Support/ThreadPool.h>
+#include <queue>
 
 //using namespace llvm;
 class UafDetectionPass final: public IterativeModulePass {
- private:
-  std::string targetMehtod;
-  std::string tmS1;
-  std::string tmS2;
-  GlobalContext *globalContext;
-  llvm::ThreadPool* threadPool = NULL;
-  std::set<std::shared_future<void>*> taskFutures;
+private:
+    std::string targetMehtod;
+    std::string tmS1;
+    std::string tmS2;
+    GlobalContext *globalContext;
 
-  private:
+    std::set<pthread_t> runningThreads;
+    std::queue<std::shared_ptr<AnalysisTask>> todoTasks;
+    size_t threadPoolLimit = 0;
+    size_t finishedTaskCount = 0;
+
     Type *IntPtrTy = NULL;
     // type for universal pointer, e.g., char * and void *
     Type *Int8Ty = NULL;
@@ -46,19 +49,20 @@ class UafDetectionPass final: public IterativeModulePass {
     bool AnalyzeSwitchInst(SwitchInst* swInst, std::shared_ptr<AnalysisState> as);
 
     void GenerateArgMemBlock(Function* func, std::shared_ptr<CallRecord> callRecord, std::shared_ptr<AnalysisState> as);
+    static void ExitThreadPool(GlobalContext* gc, UafDetectionPass* pass);
 
 public:
     UafDetectionPass(std::string tm, bool isSingleThread, GlobalContext* gc);
     UafDetectionPass(std::string tm1, std::string tm2, bool isSingleThread, GlobalContext* gc);
     ~UafDetectionPass();
 
-//    static void NewThreadHandler(void* arg);
-    static void NewThreadHandler_TP(/*int id, */AnalysisTask& at);
-    static void SysMemWatchdog(GlobalContext* gc);
-    static void PrintThreadSum(UafDetectionPass* pass, std::shared_ptr<AnalysisState> as, std::string thdStr);
+    static void* TaskHandlerThread(void* arg);
+    static void* SysMemWatchdog(void* arg);
+
+    static void PrintThreadSum(UafDetectionPass* pass, std::string thdStr);
     static bool CheckConstantEqual(Constant* c1, Constant* c2);
 
-    void CreateAnalysisTask(BasicBlock* bb,
+    void CreateAnalysisTask_NoLock(BasicBlock* bb,
     		std::shared_ptr<AnalysisState> as, Instruction* si, ExecuteRelationship er, std::string thread);
 
     virtual bool doModulePass(llvm::Module *);
