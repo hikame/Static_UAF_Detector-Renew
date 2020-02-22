@@ -4,7 +4,7 @@
 LLVM_VER=6.0
 CLANG_VER=6.0
 
-all: kmdriver_dbg
+all: ./dbg_builds/kmdriver_dbg
 
 ./dbg_builds/AnalysisState.bc: ./AnalysisState.cc ./headers/*.h
 	clang++-$(CLANG_VER) -D_GLIBCXX_DEBUG -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -O0 -emit-llvm -g3 -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
@@ -54,15 +54,9 @@ all: kmdriver_dbg
 	clang++-$(CLANG_VER) -D_GLIBCXX_DEBUG -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -O0 -emit-llvm -g3 -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
 	./dbg_builds/SinkRecord.bc ./SinkRecord.cc 
 
-builds_path:
-	mkdir -p ./dbg_builds
-
-kmdriver_dbg: ./dbg_builds/AnalysisState.bc ./dbg_builds/CallGraph.bc ./dbg_builds/ConstantValueWrapper.bc ./dbg_builds/DataLayoutHelper.bc ./dbg_builds/FieldRelationship.bc ./dbg_builds/FunctionWrapper.bc ./dbg_builds/KMDriver.bc ./dbg_builds/MemoryBlock.bc ./dbg_builds/SinkRecord.bc ./dbg_builds/SymbolicValue.bc ./dbg_builds/UAFSourceSinkManager.bc ./dbg_builds/UafDetectionPass.bc UafDetectionPass.cc
-	clang++-$(CLANG_VER) -O0 -g3 -D_GLIBCXX_DEBUG -lrt -ldl -ltinfo -lpthread -lz -lm -o kmdriver_dbg \
-	./dbg_builds/AnalysisState.bc ./dbg_builds/CallGraph.bc ./dbg_builds/ConstantValueWrapper.bc \
-	./dbg_builds/DataLayoutHelper.bc ./dbg_builds/FieldRelationship.bc ./dbg_builds/FunctionWrapper.bc ./dbg_builds/KMDriver.bc ./dbg_builds/MemoryBlock.bc \
-	./dbg_builds/SinkRecord.bc ./dbg_builds/SymbolicValue.bc ./dbg_builds/UAFSourceSinkManager.bc ./dbg_builds/UafDetectionPass.bc \
-	-lLLVMIRReader -lLLVMBitReader -lLLVMPasses -lLLVMAsmParser -lLLVMBinaryFormat -lLLVMCore -lLLVMSupport -lstdc++
+./dbg_builds/kmdriver_dbg: ./dbg_builds/AnalysisState.bc ./dbg_builds/CallGraph.bc ./dbg_builds/ConstantValueWrapper.bc ./dbg_builds/DataLayoutHelper.bc ./dbg_builds/FieldRelationship.bc ./dbg_builds/FunctionWrapper.bc ./dbg_builds/KMDriver.bc ./dbg_builds/MemoryBlock.bc ./dbg_builds/SinkRecord.bc ./dbg_builds/SymbolicValue.bc ./dbg_builds/UAFSourceSinkManager.bc ./dbg_builds/UafDetectionPass.bc
+	clang++-$(CLANG_VER) -O0 -g3 -D_GLIBCXX_DEBUG -lrt -ldl -ltinfo -lpthread -lz -lm -o ./dbg_builds/kmdriver_dbg \
+	./dbg_builds/*.bc -lLLVMIRReader -lLLVMBitReader -lLLVMPasses -lLLVMAsmParser -lLLVMBinaryFormat -lLLVMCore -lLLVMSupport -lstdc++
 
 clean:
 	rm -fr kmdriver_dbg ./dbg_builds/*
