@@ -20,11 +20,6 @@ SinkRecord::SinkRecord(std::shared_ptr<MemoryBlock> mb, Instruction* si, Instruc
 	std::stringstream tmpStream;
 	int count = 0;
 	while(true){
-		// tmpStream << outputpath << "/" << StartMethod << ":" << freeInst->getParent()->getName().str()
-		// 	<< "(" <<  freeInst->getParent()->getParent()->getName().str() << ")"
-		// 	<< "&" << sinkInst->getParent()->getName().str()
-		// 	<< "(" <<  sinkInst->getParent()->getParent()->getName().str() << ")" << count
-		// 	<< ".kmd";
 		tmpStream << globalContext->outputPath << "/" << StartMethod << ":" << freeInst->getParent()
 			<< "(" <<  freeInst->getParent()->getParent()->getName().str() << ")"
 			<< "&" << sinkInst->getParent()

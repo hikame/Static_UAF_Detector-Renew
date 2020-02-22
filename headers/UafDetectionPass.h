@@ -14,11 +14,8 @@ private:
     std::string tmS1;
     std::string tmS2;
     GlobalContext *globalContext;
-
-    std::set<pthread_t> runningThreads;
     std::queue<std::shared_ptr<AnalysisTask>> todoTasks;
     size_t threadPoolLimit = 0;
-    size_t finishedTaskCount = 0;
 
     Type *IntPtrTy = NULL;
     // type for universal pointer, e.g., char * and void *
@@ -49,7 +46,7 @@ private:
     bool AnalyzeSwitchInst(SwitchInst* swInst, std::shared_ptr<AnalysisState> as);
 
     void GenerateArgMemBlock(Function* func, std::shared_ptr<CallRecord> callRecord, std::shared_ptr<AnalysisState> as);
-    static void ExitThreadPool(GlobalContext* gc, UafDetectionPass* pass);
+    static void ExitThreadPool(GlobalContext* gc, UafDetectionPass* pass, AnalysisTask* at);
 
 public:
     UafDetectionPass(std::string tm, bool isSingleThread, GlobalContext* gc);

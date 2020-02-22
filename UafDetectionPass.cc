@@ -127,25 +127,46 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	std::shared_ptr<AnalysisTask> lastTask = NULL;
+	long last_sec = tv.tv_sec;
+	std::set<std::shared_ptr<AnalysisTask>> runningTasks;
+	size_t finished = 0;
 	while(true){
 		// wait for some thread to exit
-		while(runningThreads.size() >= threadPoolLimit // current running thread exceed the limit
-				|| (todoTasks.size() == 0 && runningThreads.size() != 0)){
-			globalContext->opLock.lock();
-			OP 	<< "[Tread-" << GetThreadID() << "] [INF] [" 
-				<< GetCurrentTime() << "] Running vs Finished vs Todo: " 
-				<< runningThreads.size() << " vs "
-				<< finishedTaskCount << " vs "
-				<< todoTasks.size() << "\n";
-			globalContext->opLock.unlock();
-			if(globalContext->shouldQuit)
+		while(runningTasks.size() >= threadPoolLimit // current running thread exceed the limit
+				|| (todoTasks.size() == 0 && runningTasks.size() != 0)){
+			if(globalContext->shouldQuit) // if we are notified to break;
 				break;
-			sleep(1); // wait for some thread to finish
+			
+			// wait for some thread to finish, and take them out
+			auto rt = runningTasks.begin(); 
+			bool foundFinished = false;
+			while(rt != runningTasks.end()){
+				if((*rt)->finished){
+					finished++;
+					rt = runningTasks.erase(rt);
+					foundFinished = true;
+				}
+				else
+					rt++;
+			}
+			if(foundFinished)
+				continue;
+			usleep(100); 
+			
+			// check do we need out logs
+			gettimeofday(&tv, NULL);
+			if(tv.tv_sec - last_sec > 10){
+				globalContext->opLock.lock();
+				OP 	<< "[Tread-" << GetThreadID() << "] [INF] [" 
+					<< GetCurrentTime() << "] Finished vs Todo: " 
+					<< finished << " vs " << todoTasks.size() << "\n";
+				globalContext->opLock.unlock();
+				last_sec = tv.tv_sec;
+			}
 		}
 
 		// check if all tasks have finished or the process should quit
-		if(runningThreads.size() == 0 && todoTasks.size() == 0){
+		if(runningTasks.size() == 0 && todoTasks.size() == 0){
 			globalContext->shouldQuit = true; // notify watchdog to exit
 			OP 	<< "[Tread-" << GetThreadID() << "] [INF] [" 
 				<< GetCurrentTime() << "] All tasks have finished.\n";
@@ -153,17 +174,23 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 		if(globalContext->shouldQuit)
 			break;
 
-		// add a new task
+		size_t space = threadPoolLimit - runningTasks.size();
+		std::shared_ptr<AnalysisTask> tsk[space];
+		// takeout a new task
 		globalContext->tpLock.lock();
-		lastTask = todoTasks.front();
-		if(pthread_create(&tid, NULL, TaskHandlerThread, (void*)&lastTask) != 0)
-			perror("Cannot create new thread.");
-		runningThreads.insert(tid);
-		todoTasks.pop();
+		for(size_t i = 0; i < space; i++){
+			tsk[i] = todoTasks.front();
+			todoTasks.pop();
+			if(todoTasks.size() == 0)
+				space = i + 1;
+		}
 		globalContext->tpLock.unlock();
-		// make sure lasttask is held by new thread
-		while(lastTask->started == false)
-			usleep(1); // 0.01ms
+		
+		for(size_t i = 0; i < space; i++){
+			if(pthread_create(&tid, NULL, TaskHandlerThread, tsk[i].get()) != 0)
+				perror("Cannot create new thread.");
+			runningTasks.insert(tsk[i]);
+		}
 	}
 	OP << "[Tread-" << GetThreadID() << "] " << "[INF] Analysis Finished @ " << GetCurrentTime() << "\n";
 }
@@ -231,22 +258,15 @@ void* UafDetectionPass::SysMemWatchdog(void* arg){
 	return NULL;
 }
 
-void UafDetectionPass::ExitThreadPool(GlobalContext* gc, UafDetectionPass* pass){
-	pthread_t tid = pthread_self(); 
-	gc->tpLock.lock();
-	pass->runningThreads.erase(tid);
-	pass->finishedTaskCount++;
-	gc->tpLock.unlock();
-}
-
 void* UafDetectionPass::TaskHandlerThread(void* arg){
-	std::shared_ptr<AnalysisTask> at = *((std::shared_ptr<AnalysisTask>*) arg);
+	AnalysisTask* at = (AnalysisTask*) arg;
 	std::shared_ptr<AnalysisState> as = at->analysisState;
 	UafDetectionPass* pass = at->uafPass;
 	at->started = true;
+	pthread_detach(pthread_self());
 
 	if(as->globalContext->shouldQuit){
-		ExitThreadPool(as->globalContext, pass);
+		at->finished = true;
 		return NULL;
 	}
 	BasicBlock* bb = at->basicBlock;
@@ -286,7 +306,7 @@ void* UafDetectionPass::TaskHandlerThread(void* arg){
 		terminate = pass->AnalyzeBasicBlock(callerBB, as, callerInst, Return, false);
 	}
 	PrintThreadSum(pass, thdStr);
-	ExitThreadPool(as->globalContext, pass);
+	at->finished = true;
 	return NULL;
 }
 
