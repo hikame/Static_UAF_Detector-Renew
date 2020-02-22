@@ -16,10 +16,6 @@ $(BCS): $(SRCS)
 merged.bc: $(BCS)
 	llvm-link-$(LLVM_VER) $^ -o $@ 
 
-# merged_opt.bc: merged.bc
-#	opt -load $(LLVM_LIB)/LLVMLeakSan.so -leaksan < merged.bc > $@ 
-	llvm-dis-$(LLVM_VER) $@ 
-
 test.bin: merged.bc
 	clang-$(CLANG_VER) $(BUILD_FLAG) $^ -o $@
 

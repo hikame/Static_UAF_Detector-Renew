@@ -9,7 +9,7 @@ kmdrawer_dbg: KMDrawer.cpp
 kmdrawer: KMDrawer.cpp
 	clang++ -I/usr/local/include/graphviz/ -lrt -ldl -ltinfo -lz -lm -lstdc++ -lgvc -lcgraph -lgvpr -o kmdrawer ./KMDrawer.cpp
 
-install:
+install: all
 	sudo ln -sf $(shell pwd)/kmdrawer /usr/local/bin/
 	sudo ln -sf $(shell pwd)/kmdrawer_dbg /usr/local/bin/
 
