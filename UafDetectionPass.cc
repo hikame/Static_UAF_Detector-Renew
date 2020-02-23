@@ -155,7 +155,7 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 			
 			// check do we need out logs
 			gettimeofday(&tv, NULL);
-			if(tv.tv_sec - last_sec > 10){
+			if(tv.tv_sec - last_sec >= 10){
 				globalContext->opLock.lock();
 				OP 	<< "[Tread-" << GetThreadID() << "] [INF] [" 
 					<< GetCurrentTime() << "] Finished vs Todo: " 
