@@ -51,6 +51,7 @@ public:
 	GlobalContext *globalContext;
 	LLVMContext* llvmContext;
 	uint64_t instCount = 0;
+	bool hasError = false;
 
 	std::list<std::shared_ptr<ExecutionRecord>> executionPath;
 	std::vector<std::shared_ptr<CallRecord>> callPath;

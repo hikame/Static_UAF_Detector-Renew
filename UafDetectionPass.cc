@@ -130,12 +130,13 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 	long last_sec = tv.tv_sec;
 	std::set<std::shared_ptr<AnalysisTask>> runningTasks;
 	size_t finished = 0;
+	size_t errCount = 0;
 	while(true){
 		// wait for some thread to exit
 		while(runningTasks.size() >= threadPoolLimit // current running thread exceed the limit
 				|| (todoTasks.size() == 0 && runningTasks.size() != 0)){
-			if(globalContext->shouldQuit) // if we are notified to break;
-				break;
+			// if(globalContext->shouldQuit) // if we are notified to break;
+			// 	break;
 			
 			// wait for some thread to finish, and take them out
 			auto rt = runningTasks.begin(); 
@@ -143,8 +144,11 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 			while(rt != runningTasks.end()){
 				if((*rt)->finished){
 					finished++;
+					if((*rt)->analysisState->hasError)
+						errCount++;
 					rt = runningTasks.erase(rt);
 					foundFinished = true;
+					
 				}
 				else
 					rt++;
@@ -158,9 +162,9 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 			if(tv.tv_sec - last_sec >= 10){
 				globalContext->opLock.lock();
 				OP 	<< "[Tread-" << GetThreadID() << "] [INF] [" 
-					<< GetCurrentTime() << "] Finished vs Todo: " 
-					<< finished << " vs " << todoTasks.size() << "\n";
-				globalContext->opLock.unlock();
+					<< GetCurrentTime() << "] Todo vs Finished vs Errors: " 
+					<< todoTasks.size() << " vs " << finished << " vs " << errCount << ".\n";
+				globalContext->opLock.unlock(); 
 				last_sec = tv.tv_sec;
 			}
 		}
@@ -171,8 +175,23 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 			OP 	<< "[Tread-" << GetThreadID() << "] [INF] [" 
 				<< GetCurrentTime() << "] All tasks have finished.\n";
 		}
-		if(globalContext->shouldQuit)
-			break;
+		if(globalContext->shouldQuit){
+			if(runningTasks.size() != 0){
+				auto rt = runningTasks.begin(); 
+				while(rt != runningTasks.end()){
+					if((*rt)->finished){
+						finished++;
+						rt = runningTasks.erase(rt);
+					}
+					else
+						rt++;
+				}
+				usleep(100); 
+				continue;
+			}
+			else
+				break;
+		}
 
 		size_t space = threadPoolLimit - runningTasks.size();
 		std::shared_ptr<AnalysisTask> tsk[space];
@@ -192,6 +211,7 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 			runningTasks.insert(tsk[i]);
 		}
 	}
+	todoTasks = std::queue<std::shared_ptr<AnalysisTask>>(); // clear todo list
 	OP << "[Tread-" << GetThreadID() << "] " << "[INF] Analysis Finished @ " << GetCurrentTime() << "\n";
 }
 
@@ -554,7 +574,7 @@ bool UafDetectionPass::AnalyzeInst(Instruction* targetInst, std::shared_ptr<Anal
 				isa<FuncletPadInst>(targetInst) ||
 				isa<CmpInst>(targetInst) ||
 				isa<TerminatorInst>(targetInst))
-			return terminate;
+			return false;
 	else{
 		if(as->globalContext->printER){
 			as->globalContext->opLock.lock();
@@ -586,6 +606,7 @@ bool UafDetectionPass::AnalyzeLoadInst(LoadInst* li, std::shared_ptr<AnalysisSta
 					OP << "[Tread-" << GetThreadID() << "] [ERR] Load from a pointer, which does not points to a memory block: "
 							<< globalContext->GetInstStr(li) << "\n";
 				}
+				as->hasError = true;
 				return true;
 			}
 		}
@@ -635,6 +656,7 @@ bool UafDetectionPass::AnalyzeStoreInst(StoreInst* si, std::shared_ptr<AnalysisS
 					OP << "[Tread-" << GetThreadID() << "] [ERR] Store to a pointer, which does not points to a memory block: "
 							<< globalContext->GetInstStr(si) << "\n";
 				}
+				as->hasError = true;
 				return true;
 			}
 		}
@@ -753,8 +775,16 @@ bool UafDetectionPass::AnalyzeGEPInst(GetElementPtrInst* gepInst, std::shared_pt
 	std::shared_ptr<MemoryBlock> mb = AnalyzeGEPOperator(dyn_cast<GEPOperator>(gepInst), as.get(), &newASSet);
 	if(globalContext->shouldQuit) // the analysis may should quit
 		return true;
-	if(mb == NULL)
+	if(mb == NULL){
+		if(globalContext->printER){
+			std::lock_guard<std::mutex> lg(globalContext->opLock);
+			OP 	<< "[Tread-" << GetThreadID()
+					<< "] [ERR] Cannot get field memoryblock of target gep instruction: "
+					<< globalContext->GetInstStr(gepInst) << ".\n";
+		}
+		as->hasError = true;
 		return true;
+	}
 	if(newASSet.size() == 0){
 		as->AddVariableRecord(gepInst, mb);
 		return false;
@@ -947,19 +977,16 @@ bool UafDetectionPass::AnalyzeSelectInst(SelectInst* si, std::shared_ptr<Analysi
 
 	// 1. true situation
 	std::shared_ptr<AnalysisState> trueas = as->MakeCopy();
-	if(trueas == NULL)
+	if(trueas == NULL)  // need to quit
 		return true;
 	std::shared_ptr<AnalysisState> falseas = as->MakeCopy();
-	if(falseas == NULL)
+	if(falseas == NULL) // need to quit
 		return true;
-
-	// delete as;
 
 	auto trueVR = trueas->GetVariableRecord(truevalue);
 	trueas->AddVariableRecord(newvalue, trueVR);
 
 	// 2. false situation
-
 	auto falseVR = falseas->GetVariableRecord(falsevalue);
 	falseas->AddVariableRecord(newvalue, falseVR);
 	globalContext->tpLock.lock();
@@ -1020,12 +1047,11 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 		bool isMalloc = globalContext->ssm->IsSource(ci);
 		if(isMalloc){
 			std::shared_ptr<AnalysisState> nullas = as->MakeCopy();
-			if(nullas == NULL)
+			if(nullas == NULL)  // need to quit
 				return true;
 			std::shared_ptr<AnalysisState> nnas = as->MakeCopy();
-			if(nnas == NULL)
+			if(nnas == NULL)   // need to quit
 				return true;
-			// delete as;
 
 			PointerType* pt = dyn_cast<PointerType>(ci->getType());
 			ConstantPointerNull* nullPointer = ConstantPointerNull::get(pt);
@@ -1048,8 +1074,10 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 		}
 		if(func->getBasicBlockList().empty()){
 			FunctionWrapper::HandleResult ret = funcWrapper->HandleFunction(func, ci, as);
-			if(ret == FunctionWrapper::HandleResult::NeedAbort)
+			if(ret == FunctionWrapper::HandleResult::NeedAbort){
+				as->hasError = true;
 				return true;
+			}
 			else if(ret == FunctionWrapper::HandleResult::HasWrapper)
 				return false;
 			else if(ret == FunctionWrapper::HandleResult::NoWrapper)
@@ -1371,7 +1399,6 @@ bool UafDetectionPass::AnalyzeCmpInst(CmpInst* ci, std::shared_ptr<AnalysisState
 	CreateAnalysisTask_NoLock(ci->getParent(), falseas, ci, CMP_False, thdStr);
 	globalContext->tpLock.unlock();
 
-	// delete as;
 	return true;
 }
 
