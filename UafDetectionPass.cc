@@ -415,8 +415,8 @@ bool UafDetectionPass::AnalyzeBranchInst(BranchInst* brInst, std::shared_ptr<Ana
 	if(falseAS == NULL)
 		return true;
 
-	trueAS->AddVariableRecord(cVariable, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(trueValue)));
-	falseAS->AddVariableRecord(cVariable, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(falseValue)));
+	trueAS->AddLocalVariableRecord(cVariable, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(trueValue)));
+	falseAS->AddLocalVariableRecord(cVariable, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(falseValue)));
 	globalContext->tpLock.lock();
 	CreateAnalysisTask_NoLock(trueSB, trueAS, NULL, Branch_Undetermined, GetThreadID());
 	CreateAnalysisTask_NoLock(falseSB, falseAS, NULL, Branch_Undetermined, GetThreadID());
@@ -448,7 +448,7 @@ bool UafDetectionPass::AnalyzeSwitchInst(SwitchInst* swInst, std::shared_ptr<Ana
 			std::shared_ptr<AnalysisState> branchAS = as->MakeCopy();
 			if(branchAS == NULL)
 				return true;
-			branchAS->AddVariableRecord(cVariable, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(caseV)));
+			branchAS->AddLocalVariableRecord(cVariable, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(caseV)));
 			todoMap[bb] = branchAS;
    		}
 
@@ -542,7 +542,7 @@ bool UafDetectionPass::AnalyzeInst(Instruction* targetInst, std::shared_ptr<Anal
 		terminate = AnalyzeBiOpe(bo, as);
 	else if(isa<ExtractValueInst>(targetInst)){
 		std::shared_ptr<SymbolicValue> sv(new SymbolicValue());
-		as->AddVariableRecord(targetInst, sv);
+		as->AddLocalVariableRecord(targetInst, sv);
 		terminate = false;
 	}
 	// TODO I just want to see what are they mean
@@ -597,7 +597,7 @@ bool UafDetectionPass::AnalyzeLoadInst(LoadInst* li, std::shared_ptr<AnalysisSta
 		if(pointerMB == NULL){
 			if(auto sv = std::dynamic_pointer_cast<SymbolicValue>(cvr)){
 				pointerMB = std::shared_ptr<MemoryBlock>(new MemoryBlock(pOpe, Heap, as->globalContext, true));
-				as->AddVariableRecord(pOpe, pointerMB);
+				// as->AddVariableRecord(pOpe, pointerMB); //todo delete, following merge will do this
 				as->MergeFakeValueRecord(cvr, pointerMB);
 			}
 			else{
@@ -612,8 +612,9 @@ bool UafDetectionPass::AnalyzeLoadInst(LoadInst* li, std::shared_ptr<AnalysisSta
 		}
 	}
 	else{  //cvr is NULL 
-		pointerMB = std::shared_ptr<MemoryBlock>(new MemoryBlock(pOpe, Heap, as->globalContext, true));
-		as->AddVariableRecord(pOpe, pointerMB);
+		// pointerMB = std::shared_ptr<MemoryBlock>(new MemoryBlock(pOpe, Heap, as->globalContext, true));
+		// as->AddVariableRecord(pOpe, pointerMB);
+		assert(0);  // GetVariableRecord will always return some
 	}
 
 	Type* vType = li->getType();
@@ -634,7 +635,7 @@ bool UafDetectionPass::AnalyzeLoadInst(LoadInst* li, std::shared_ptr<AnalysisSta
 	}
 
 	auto valueInMB = as->GetMBContainedValue(pointerMB);
-	as->AddVariableRecord(value, valueInMB);
+	as->AddLocalVariableRecord(value, valueInMB);
 	return false;
 }
 
@@ -648,7 +649,7 @@ bool UafDetectionPass::AnalyzeStoreInst(StoreInst* si, std::shared_ptr<AnalysisS
 		if(pointerMB == NULL){
 			if(auto sv = std::dynamic_pointer_cast<SymbolicValue>(cvr)){
 				pointerMB = std::shared_ptr<MemoryBlock>(new MemoryBlock(pOpe, Heap, as->globalContext, true));
-				as->AddVariableRecord(pOpe, pointerMB);
+				// as->AddVariableRecord(pOpe, pointerMB); todo delete, this will be down by Merge...
 				as->MergeFakeValueRecord(cvr, pointerMB);
 			}
 			else{
@@ -663,8 +664,9 @@ bool UafDetectionPass::AnalyzeStoreInst(StoreInst* si, std::shared_ptr<AnalysisS
 		}
 	}
 	else{  //cvr is NULL 
-		pointerMB = std::shared_ptr<MemoryBlock>(new MemoryBlock(pOpe, Heap, as->globalContext, true));
-		as->AddVariableRecord(pOpe, pointerMB);
+		// pointerMB = std::shared_ptr<MemoryBlock>(new MemoryBlock(pOpe, Heap, as->globalContext, true));
+		// as->AddVariableRecord(pOpe, pointerMB);
+		assert(0); // GetVariableRecord will always return some
 	}
 
 	Type* vType = vOpe->getType();
@@ -790,7 +792,7 @@ bool UafDetectionPass::AnalyzeGEPInst(GetElementPtrInst* gepInst, std::shared_pt
 		return true;
 	}
 	if(newASSet.size() == 0){
-		as->AddVariableRecord(gepInst, mb);
+		as->AddLocalVariableRecord(gepInst, mb);
 		return false;
 	}
 	// the returned mb is a field with symbolic index, it may contains different values
@@ -798,7 +800,7 @@ bool UafDetectionPass::AnalyzeGEPInst(GetElementPtrInst* gepInst, std::shared_pt
 	for(std::pair<std::shared_ptr<AnalysisState>, std::shared_ptr<MemoryBlock>> pair : newASSet){
 		std::shared_ptr<AnalysisState> newAS = pair.first;
 		std::shared_ptr<MemoryBlock> mb = pair.second;
-		newAS->AddVariableRecord(gepInst, mb);
+		newAS->AddLocalVariableRecord(gepInst, mb);
 		CreateAnalysisTask_NoLock(gepInst->getParent(), newAS, gepInst, Symbolic_Index, GetThreadID());
 	}
 	globalContext->tpLock.unlock();
@@ -820,7 +822,7 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 	if(dcMB == NULL){
 		if(std::dynamic_pointer_cast<SymbolicValue>(valueRecord)){
 			std::shared_ptr<MemoryBlock> createdMB(new MemoryBlock(cvalue, Heap, as->globalContext, true));
-			as->AddVariableRecord(cvalue, createdMB);
+			// as->AddVariableRecord(cvalue, createdMB); // todo delete, following merge will do this
 			as->MergeFakeValueRecord(valueRecord, createdMB);
 			valueRecord = createdMB;
 			dcMB = createdMB;
@@ -960,7 +962,7 @@ bool UafDetectionPass::AnalyzeCastInst(CastInst* ci, std::shared_ptr<AnalysisSta
 			// 	mb->resetType(ct);   // we need to reset but we cannot handle the memory blocks very well...
 		}
 	}
-	as->AddVariableRecord(newvalue, orgVR);
+	as->AddLocalVariableRecord(newvalue, orgVR);
 	return false;
 }
 
@@ -980,7 +982,7 @@ bool UafDetectionPass::AnalyzePHINode(PHINode* phi, std::shared_ptr<AnalysisStat
 		orgvalue = phi->getIncomingValue(i);
 	}
 	auto orgVR = as->GetVariableRecord(orgvalue);
-	as->AddVariableRecord(newvalue, orgVR);
+	as->AddLocalVariableRecord(newvalue, orgVR);
 	return false;
 }
 
@@ -999,11 +1001,11 @@ bool UafDetectionPass::AnalyzeSelectInst(SelectInst* si, std::shared_ptr<Analysi
 		return true;
 
 	auto trueVR = trueas->GetVariableRecord(truevalue);
-	trueas->AddVariableRecord(newvalue, trueVR);
+	trueas->AddLocalVariableRecord(newvalue, trueVR);
 
 	// 2. false situation
 	auto falseVR = falseas->GetVariableRecord(falsevalue);
-	falseas->AddVariableRecord(newvalue, falseVR);
+	falseas->AddLocalVariableRecord(newvalue, falseVR);
 	globalContext->tpLock.lock();
 	CreateAnalysisTask_NoLock(si->getParent(), trueas, si, Select_True, thdStr);
 	CreateAnalysisTask_NoLock(si->getParent(), falseas, si, Select_False, thdStr);
@@ -1072,12 +1074,12 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 
 			PointerType* pt = dyn_cast<PointerType>(ci->getType());
 			ConstantPointerNull* nullPointer = ConstantPointerNull::get(pt);
-			nullas->AddVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(nullPointer)));
+			nullas->AddLocalVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(nullPointer)));
 
 
 			Value* value = ci;
 			std::shared_ptr<MemoryBlock> mb(new MemoryBlock(value, MBType::Heap, nnas->globalContext));
-			nnas->AddVariableRecord(value, mb);
+			nnas->AddLocalVariableRecord(value, mb);
 			std::list<std::shared_ptr<ExecutionRecord>>::iterator it = nnas->executionPath.end();
 			it--;
 			std::shared_ptr<ExecutionRecord> er = *it;
@@ -1122,7 +1124,7 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 			as->RecordWarn(Call_Depth_Exceed_Limit);		
 
 		std::shared_ptr<SymbolicValue> sv(new SymbolicValue());
-		as->AddVariableRecord(ci, sv);
+		as->AddLocalVariableRecord(ci, sv);
 		return false;
 	}
 
@@ -1143,7 +1145,7 @@ void UafDetectionPass::GenerateFakeRetvalue(CallInst* ci, std::shared_ptr<Analys
 	if(retV == NULL)
 		return;
 	std::shared_ptr<SymbolicValue> fv(new SymbolicValue());
-	as->AddVariableRecord(ci, fv);
+	as->AddLocalVariableRecord(ci, fv);  // the callrecord has not been moved to callee
 }
 
 bool UafDetectionPass::IsLLVMDebugFunction(Function* func){
@@ -1165,11 +1167,6 @@ bool UafDetectionPass::IsLLVMDebugFunction(Function* func){
 
 bool UafDetectionPass::AnalyzeReturnInst(ReturnInst* ri, 
 		std::shared_ptr<AnalysisState>as){
-// todo delete debug
-// if(ri->getParent()->getParent()->getName() == "EVP_PKEY_free"){
-// 	as->PrintExectutionPath();
-// 	OP << ri->getParent()->getParent()->getName() << "\n";
-// }
 	Value* retValue = ri->getReturnValue();
 	std::shared_ptr<CallRecord> lastCR = as->GetLastCall();
 	CallInst* ci = lastCR->callInst;
@@ -1186,7 +1183,7 @@ bool UafDetectionPass::AnalyzeReturnInst(ReturnInst* ri,
 		}
 		as->RecordWarn(Return_without_Value_Record);
 	}
-	as->AddVariableRecord(newValue, retVR);
+	as->AddLocalVariableRecord(newValue, retVR, 1);
 	return false;
 }
 
@@ -1228,9 +1225,9 @@ bool UafDetectionPass::AnalyzeAndInst(BinaryOperator* bo,
 	Value* tv = ConstantInt::getTrue(bo->getContext());
 	Value* fv = ConstantInt::getFalse(bo->getContext());
 	if(v1 == tv && v2 == tv)
-		as->AddVariableRecord(bo, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(tv)));
+		as->AddLocalVariableRecord(bo, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(tv)));
 	else if(v1 == fv || v2 == fv)
-		as->AddVariableRecord(bo, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(fv)));
+		as->AddLocalVariableRecord(bo, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(fv)));
 	return false; // should not terminate
 }
 
@@ -1239,9 +1236,9 @@ bool UafDetectionPass::AnalyzeOrInst(BinaryOperator* bo,
 	Value* tv = ConstantInt::getTrue(bo->getContext());
 	Value* fv = ConstantInt::getFalse(bo->getContext());
 	if(v1 == tv || v2 == tv)
-		as->AddVariableRecord(bo, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(tv)));
+		as->AddLocalVariableRecord(bo, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(tv)));
 	else if(v1 == fv && v2 == fv)
-		as->AddVariableRecord(bo, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(fv)));
+		as->AddLocalVariableRecord(bo, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(fv)));
 	return false; // should not terminate
 }
 
@@ -1332,7 +1329,7 @@ bool UafDetectionPass::AnalyzeCmpInst(CmpInst* ci, std::shared_ptr<AnalysisState
 				Value* val = ci->getOperand(i);
 				if(!isa<ConstantData>(val)){
 					std::shared_ptr<SymbolicValue> sv(new SymbolicValue());
-					as->AddVariableRecord(val, sv);
+					as->AddLocalVariableRecord(val, sv);
 					if(globalContext->printDB){
 						std::lock_guard<std::mutex> lg(globalContext->opLock);
 						OP << "[Tread-" << GetThreadID() << "] " <<
@@ -1397,7 +1394,7 @@ bool UafDetectionPass::AnalyzeCmpInst(CmpInst* ci, std::shared_ptr<AnalysisState
 	}
 		
 	if(result != NULL){
-		as->AddVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(result)));
+		as->AddLocalVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(result)));
 		return false;
 	}
 
@@ -1409,7 +1406,7 @@ bool UafDetectionPass::AnalyzeCmpInst(CmpInst* ci, std::shared_ptr<AnalysisState
 		trueas->MergeFakeValueRecord(opValueRecords[0], opValueRecords[1]);
 	else if(prd == CmpInst::Predicate::ICMP_NE)
 		trueas->RecordCMPResult(opValueRecords[0], opValueRecords[1], CmpInst::Predicate::ICMP_NE, true);
-	trueas->AddVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(trueResult)));
+	trueas->AddLocalVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(trueResult)));
 
 	// 2. false situation
 	std::shared_ptr<AnalysisState> falseas = as->MakeCopy();
@@ -1419,7 +1416,7 @@ bool UafDetectionPass::AnalyzeCmpInst(CmpInst* ci, std::shared_ptr<AnalysisState
 		falseas->MergeFakeValueRecord(opValueRecords[0], opValueRecords[1]);
 	else if(prd == CmpInst::Predicate::ICMP_EQ)
 		falseas->RecordCMPResult(opValueRecords[0], opValueRecords[1], CmpInst::Predicate::ICMP_EQ, false);
-	falseas->AddVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(falseResult)));
+	falseas->AddLocalVariableRecord(ci, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(falseResult)));
 
 	globalContext->tpLock.lock();
 	CreateAnalysisTask_NoLock(ci->getParent(), trueas, ci, CMP_True, thdStr);
@@ -1493,7 +1490,11 @@ void UafDetectionPass::GenerateArgMemBlock(Function* func, std::shared_ptr<CallR
 		if(callInst == NULL){
 			if(isa<PointerType>(arg->getType())){
 				std::shared_ptr<MemoryBlock> argMB(new MemoryBlock(arg, MBType::Arg, as->globalContext));
-				as->AddVariableRecord(arg, argMB);
+				as->AddLocalVariableRecord(arg, argMB);
+			}
+			else{
+				std::shared_ptr<SymbolicValue> argSV(new SymbolicValue());
+				as->AddLocalVariableRecord(arg, argSV);
 			}
 			continue;
 		}
@@ -1501,14 +1502,14 @@ void UafDetectionPass::GenerateArgMemBlock(Function* func, std::shared_ptr<CallR
 		Value* realArg = callInst->getArgOperand(count);
 		if(isa<ConstantData>(realArg)){
 			std::shared_ptr<ConstantValueWrapper> cvw(new ConstantValueWrapper(realArg));
-			as->AddVariableRecord(arg, cvw);
+			as->AddLocalVariableRecord(arg, cvw);
 			continue;
 		}
 
-		std::shared_ptr<StoredElement> raVR = as->GetVariableRecord(realArg);
+		std::shared_ptr<StoredElement> raVR = as->GetVariableRecord(realArg, 1);
 		if(arg->hasByValOrInAllocaAttr()){
 			std::shared_ptr<MemoryBlock> newmb(new MemoryBlock(arg, MBType::Arg, as->globalContext));
-			as->AddVariableRecord(arg, newmb);
+			as->AddLocalVariableRecord(arg, newmb);
 			std::shared_ptr<MemoryBlock> ramb = std::dynamic_pointer_cast<MemoryBlock>(raVR);
 			assert(ramb != NULL);
 			
@@ -1521,7 +1522,7 @@ void UafDetectionPass::GenerateArgMemBlock(Function* func, std::shared_ptr<CallR
 			}
 		}
 		else
-			as->AddVariableRecord(arg, raVR);
+			as->AddLocalVariableRecord(arg, raVR);
 	}
 }
 

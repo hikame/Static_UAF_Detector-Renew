@@ -38,7 +38,6 @@ class UafDetectionPass;
 class FunctionWrapper;
 class DataLayoutHelper;
 class SymbolicValue;
-class LocalVar;
 class ConstantValueWrapper;
 class SinkRecord;
 
@@ -55,6 +54,5 @@ class SinkRecord;
 #include "FunctionWrapper.h"
 #include "DataLayoutHelper.h"
 #include "SymbolicValue.h"
-#include "LocalVar.h"
 #include "ConstantValueWrapper.h"
 #endif /* HEADERS_ANALYSISSTRUCTHEADERS_H_ */

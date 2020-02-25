@@ -16,7 +16,7 @@ $(BCS): $(SRCS)
 merged.bc: $(BCS)
 	llvm-link-$(LLVM_VER) $^ -o $@ 
 
- : merged.bc
+dis : merged.bc
 	llvm-dis-$(LLVM_VER) merged.bc
 
 test.bin: merged.bc
@@ -33,7 +33,7 @@ test: merged.bc
 	kmdrawer -e "$(PWD)" ./
 	kmdrawer -s -e "$(PWD)" ./
 
-retest: clean test show
+retest: clean test dis show 
 
 help:
 	echo "kmdriver -cplimit 10 -ctn false -printER true -printDB true -printEP true -printWN true -tm main -suaf -o \"$(PWD)\" -ifs /home/kame/workspace/Static_UAF_Detector/KMDriver_v5/ignored_function_list.conf \"$(PWD)/merged.bc\""

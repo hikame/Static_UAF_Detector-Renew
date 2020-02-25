@@ -41,7 +41,7 @@ void AnalysisState::CopyMemoryBlockTags(std::shared_ptr<MemoryBlock> destMB, Mem
 
 void AnalysisState::GenerateStackMB(AllocaInst* allocInst){
 	std::shared_ptr<MemoryBlock> stackMB(new MemoryBlock(allocInst, MBType::Stack, globalContext));
-	AddVariableRecord(allocInst, stackMB);
+	AddLocalVariableRecord(allocInst, stackMB);
 }
 
 bool AnalysisState::ShouldNotContinue(BasicBlock* targetBB){
@@ -125,28 +125,35 @@ CallInst* AnalysisState::TakeOutLastCall(){
 		for(auto iit = bb->getInstList().begin(); iit != bb->getInstList().end(); iit++){
 			Instruction* inst = &*iit;
 			if(isa<AllocaInst>(inst)){
-				std::shared_ptr<StoredElement> se = variableValues[inst];
+				std::shared_ptr<StoredElement> se = QueryVariableRecord(inst);
 				if(se == NULL)
 					continue;
 				std::shared_ptr<MemoryBlock> heapMB = std::dynamic_pointer_cast<MemoryBlock>(se);
 				assert(heapMB != NULL);
 				allocaMBs.insert(heapMB);
-				variableValues.erase(inst);
 				mbContainedValues.erase(heapMB);
 			}
 		}
 	}
 	lastCR->lock.unlock();
 
-	// if some alloced memoryblock are still used by some StoredElement, we should mark these objects with free tags
+	// if some alloced memoryblock are still used as some StoredElement, we should mark these objects with free tags
 	for(std::shared_ptr<MemoryBlock> mb : allocaMBs){
 		size_t count = 0;
-		for(auto v : variableValues)
+		for(auto v : globalValueRecord)
 			if(v.second == mb)
 				count++;
 		for(auto v : mbContainedValues)
 			if(v.second == mb && allocaMBs.count(mb) == 0)  // some non-local memoryblock stored this memoryblock as its stored element
 				count++;
+
+		auto cr = callPath.begin();
+		while((*cr) != lastCR){  // search the call path to find record.
+			for(auto v : (*cr)->localValueRecord) // it is only likely to happen on the first level callrecord
+				if(v.second == mb)
+					count++;
+			cr++;
+		}
 		if(count != 0) {
 			if(globalContext->printDB){
 				Instruction* inst = dyn_cast<Instruction>(mb->GetBaseValue());
@@ -189,13 +196,18 @@ std::shared_ptr<AnalysisState> AnalysisState::MakeCopy(){
 
 	std::shared_ptr<AnalysisState> newAS = std::shared_ptr<AnalysisState>(new AnalysisState(llvmContext, globalContext));
 	newAS->executionPath = executionPath;
-	newAS->callPath = callPath;
 	newAS->instCount = instCount;
 
-	for(std::pair<Value*, std::shared_ptr<StoredElement>> pair : variableValues)
-		newAS->AddVariableRecord(pair.first, pair.second);
+	for(std::pair<Value*, std::shared_ptr<StoredElement>> pair : globalValueRecord)
+		newAS->AddGlobalVariableRecord(pair.first, pair.second);
 
-	for(std::pair<std::shared_ptr<MemoryBlock>, std::shared_ptr<StoredElement>> pair : mbContainedValues)
+	// std::vector<std::shared_ptr<CallRecord>> callPath;
+	for(auto cr : callPath){
+		auto newcr = std::shared_ptr<CallRecord>(new CallRecord(cr));
+		newAS->callPath.push_back(newcr);
+	}
+
+	for(auto pair : mbContainedValues)
 		newAS->RecordMBContainedValue(pair.first, pair.second);
 
 	for(auto pair: warnRecords)
@@ -230,12 +242,20 @@ void AnalysisState::MergeFakeValueRecord(std::shared_ptr<StoredElement> v1, std:
 	}
 
 	std::set<Value*> todoValueList;
-	for(std::pair<Value*, std::shared_ptr<StoredElement>> pair : variableValues)
+	for(std::pair<Value*, std::shared_ptr<StoredElement>> pair : globalValueRecord)
 		if(pair.second == v2)
 			todoValueList.insert(pair.first);
-
-	for(Value* todoV : todoValueList){
-		AddVariableRecord(todoV, v1);
+	for(Value* todoV : todoValueList)
+		globalValueRecord[todoV] = v1;
+	
+	for(auto cr : callPath){
+		todoValueList.empty();
+		for(auto lvr : cr->localValueRecord){
+			if(lvr.second == v2)
+				todoValueList.insert(lvr.first);
+		}
+		for(Value* todoV : todoValueList)
+			cr->localValueRecord[todoV] = v1;
 	}
 
 	std::set<std::shared_ptr<MemoryBlock>> todoMBList;
@@ -283,12 +303,35 @@ void AnalysisState::PrepareForStep2(){
 //TODO implement this function!
 }
 
-void AnalysisState::AddVariableRecord(Value* variable, std::shared_ptr<StoredElement> newValue){
-	variableValues[variable] = newValue;
+void AnalysisState::AddGlobalVariableRecord(Value* variable, std::shared_ptr<StoredElement> newValue){
+	globalValueRecord[variable] = newValue;
 }
 
-std::shared_ptr<StoredElement> AnalysisState::QueryVariableRecord(Value* variable){
-	if(auto ele = variableValues[variable])
+
+void AnalysisState::AddLocalVariableRecord(Value* variable, std::shared_ptr<StoredElement> newValue, int level){  // level mays which function starting from the last callee (whose level is 0)
+	auto it = callPath.end();
+	for(int i = 0; i <= level; i++){
+		assert(it != callPath.begin());
+		it--;
+	}
+	auto lc = (*it);
+	if(auto inst = dyn_cast<Instruction>(variable))
+		assert(inst->getParent()->getParent() == lc->func);
+	lc->localValueRecord[variable] = newValue;
+}
+
+std::shared_ptr<StoredElement> AnalysisState::QueryVariableRecord(
+		Value* variable, int level){
+	if(auto ele = globalValueRecord[variable])
+		return ele;
+
+	auto it = callPath.end();
+	for(int i = 0; i <= level; i++){
+		assert(it != callPath.begin());
+		it--;
+	}
+	auto lc = (*it);
+	if(auto ele = lc->localValueRecord[variable])
 		return ele;
 
 	if(Constant* constant = dyn_cast<Constant>(variable)){
@@ -296,7 +339,7 @@ std::shared_ptr<StoredElement> AnalysisState::QueryVariableRecord(Value* variabl
 			Type* gvType = gVariable->getType();
 			assert(isa<PointerType>(gvType));
 			std::shared_ptr<MemoryBlock> mb(new MemoryBlock(gVariable, Global, globalContext));
-			AddVariableRecord(gVariable, mb);
+			AddGlobalVariableRecord(gVariable, mb);
 
 			if(globalContext->trustGlobalInit){
 				if(gVariable->hasInitializer()){
@@ -343,36 +386,42 @@ std::shared_ptr<StoredElement> AnalysisState::QueryVariableRecord(Value* variabl
 			return NULL; // leave this for GetVariableRecord to handle
 		// This is just a normal constant value.
 		std::shared_ptr<ConstantValueWrapper> cvw(new ConstantValueWrapper(variable));
-		variableValues[variable] = cvw;
+		globalValueRecord[variable] = cvw;
 		return cvw;
 	}
-
 	return NULL;
 }
 
-std::shared_ptr<StoredElement> AnalysisState::GetVariableRecord(Value* variable){
-	if(auto qr = QueryVariableRecord(variable))
+std::shared_ptr<StoredElement> AnalysisState::GetVariableRecord(
+		Value* variable, int level){
+	if(auto qr = QueryVariableRecord(variable, level))
 		return qr;
 
 	if(ConstantExpr* ce = dyn_cast<ConstantExpr>(variable)){
 		if(GEPOperator* gep = dyn_cast<GEPOperator>(variable)){
 			// we don't provide newas set here. Therefore, the information 
 			// of possible contained value are lost if the indexs in gep are symbolic
-			return globalContext->UDP->AnalyzeGEPOperator(gep, this);  // this will AddVariableRecord if needed 
+			return globalContext->UDP->AnalyzeGEPOperator(gep, this);  // this will add to VariableRecord if needed 
 		}
 
 		unsigned opcode = ce->getOpcode();
 		if(opcode > Instruction::CastOpsBegin && opcode < Instruction::CastOpsEnd){
 			Constant* conOpe0 = ce->getOperand(0);
-			std::shared_ptr<StoredElement> vr = GetVariableRecord(conOpe0);
-			AddVariableRecord(ce, vr);
+			std::shared_ptr<StoredElement> vr = GetVariableRecord(conOpe0, level);
+			AddLocalVariableRecord(ce, vr, level);
 			return vr;
 		}
 	}
 
 	// auto generate fake value
 	std::shared_ptr<SymbolicValue> sv(new SymbolicValue());
-	AddVariableRecord(variable, sv);
+	if(GlobalVariable* gVariable = dyn_cast<GlobalVariable>(variable))
+		AddGlobalVariableRecord(variable, sv);
+	else if(auto inst = dyn_cast<Instruction>(variable))
+		AddLocalVariableRecord(variable, sv, level);
+	else
+		assert(0);
+	AddLocalVariableRecord(variable, sv, level);
 	if(globalContext->printDB){
 		std::lock_guard<std::mutex> lg(globalContext->opLock);
 		OP << "[Tread-" << GetThreadID() << "] " <<
@@ -381,11 +430,15 @@ std::shared_ptr<StoredElement> AnalysisState::GetVariableRecord(Value* variable)
 	return sv;
 }
 
-void AnalysisState::RecordMBContainedValue(std::shared_ptr<MemoryBlock> mb, std::shared_ptr<StoredElement> newValue){
+void AnalysisState::RecordMBContainedValue(
+		std::shared_ptr<MemoryBlock> mb, 
+		std::shared_ptr<StoredElement> newValue){
 	mbContainedValues[mb] = newValue;
 }
 
-std::shared_ptr<StoredElement> AnalysisState::GetMBContainedValue(std::shared_ptr<MemoryBlock> mb, bool autoGenerateFV){
+std::shared_ptr<StoredElement> AnalysisState::GetMBContainedValue(
+		std::shared_ptr<MemoryBlock> mb, 
+		bool autoGenerateFV){
 	std::map<std::shared_ptr<MemoryBlock>, std::shared_ptr<StoredElement>>::iterator it = mbContainedValues.find(mb);
 	if(it == mbContainedValues.end()){
 		if(autoGenerateFV || mb->isFake){
@@ -449,12 +502,21 @@ void AnalysisState::ClearUselessMBTags(){
 	while(tag != mbTags.end()){
 		std::shared_ptr<MemoryBlock> mb = tag->first;
 		size_t count = 0;
-		for(auto v : variableValues)
+		for(auto v : globalValueRecord)
 			if(v.second == mb)
 				count++;
 		for(auto v : mbContainedValues)
 			if(v.second == mb)  // some non-local memoryblock stored this memoryblock as its stored element
 				count++;
+
+		auto cr = callPath.begin();
+		while(cr != callPath.end()){  // search the call path to find record.
+			for(auto v : (*cr)->localValueRecord) // it is only likely to happen on the first level callrecord
+				if(v.second == mb)
+					count++;
+			cr++;
+		}
+		
 		if(count == 0)
 			tag = mbTags.erase(tag);
 		else

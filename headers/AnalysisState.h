@@ -39,10 +39,18 @@ struct CallRecord{
 	std::mutex lock;
 	Function* func;
 	CallInst* callInst;
+	std::map<Value*, std::shared_ptr<StoredElement>> localValueRecord; //some variables are not pointers for memory block. their value are some value such as const value.
 	
 	CallRecord(Function* f,	CallInst* c){
 		func = f;
 		callInst = c;
+	}
+
+	CallRecord(std::shared_ptr<CallRecord> source){  //copy
+		func = source->func;
+		callInst = source->callInst;
+		for(auto pair : source->localValueRecord)
+			localValueRecord[pair.first] = pair.second;
 	}
 };
 
@@ -74,7 +82,7 @@ struct MemoryBlockTag{
 
 class AnalysisState{
 private:
-	std::map<Value*, std::shared_ptr<StoredElement>> variableValues; //some variables are not pointers for memory block. their value are some value such as const value.
+	std::map<Value*, std::shared_ptr<StoredElement>> globalValueRecord; //some variables are not pointers for memory block. their value are some value such as const value.
 	std::map<std::shared_ptr<MemoryBlock>, std::shared_ptr<StoredElement>> mbContainedValues;
 	std::set<std::shared_ptr<CMPRecord>> cmpRecords;
 	std::multimap<std::shared_ptr<MemoryBlock>, std::shared_ptr<MemoryBlockTag>> mbTags;
@@ -109,11 +117,14 @@ public:
 	void ClearUselessMBTags();
 	~AnalysisState();
 
-	/** if there is no record, this function will generate a symbolic value for it*/
-	std::shared_ptr<StoredElement> GetVariableRecord(Value*);
-	std::shared_ptr<StoredElement> QueryVariableRecord(Value* variable);
+	/* if there is no record, this function will generate a symbolic value for it
+	 * level is only for record query of local variables
+	*/
+	std::shared_ptr<StoredElement> GetVariableRecord(Value*, int level = 0);
+	std::shared_ptr<StoredElement> QueryVariableRecord(Value* variable, int level = 0);
 
-	void AddVariableRecord(Value*, std::shared_ptr<StoredElement>);
+	void AddLocalVariableRecord(Value*, std::shared_ptr<StoredElement>, int level = 0);
+	void AddGlobalVariableRecord(Value*, std::shared_ptr<StoredElement>);
 	void RecordMBContainedValue(std::shared_ptr<MemoryBlock>, 
 		std::shared_ptr<StoredElement>);
 	std::shared_ptr<StoredElement> GetMBContainedValue(std::shared_ptr<MemoryBlock>, bool autoGenerateFV = true);

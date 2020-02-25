@@ -17,6 +17,7 @@ void fake_seq_open(struct TestStr* ts){
 
 void foo0(int argc) {
   struct TestStr ts;
+  ts.fld = NULL;  // otherwise, it will not be treated as null by kmdriver
   fake_seq_open(&ts);
   fake_seq_open(&ts);
 }
