@@ -118,9 +118,9 @@ void SinkRecord::RecordBasicBlock(BasicBlock* bb, bool important){
 		size_t i = 0;
 		for(auto w : wrnSet){
 			tmpSS << w;
-			i++;
 			if(i < size - 1)
 				tmpSS << ", ";
+			i++;
 		}
 	}
 

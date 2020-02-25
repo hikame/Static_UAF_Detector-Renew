@@ -26,7 +26,7 @@ run:
 	./test.bin
 
 show:
-	code ./*_normal.png
+	code ./*_normal.png ./*.c
 
 test: merged.bc
 	kmdriver -bbAnalyzeLimit 2 -cplimit 10 -ctn false -printTC true -printER true -printDB true -printWN true -tm main -suaf -o "$(PWD)" -ifs /home/kame/workspace/Static_UAF_Detector/KMDriver_v5/ignored_function_list.conf "$(PWD)/merged.bc"
