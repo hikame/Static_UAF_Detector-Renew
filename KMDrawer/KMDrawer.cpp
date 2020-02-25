@@ -327,7 +327,6 @@ bool HandleResultFile(std::string filePath, char* emitPrefix){
 	agattr(graph, AGNODE, const_cast<char*>("color"), const_cast<char*>("black"));
 	agattr(graph, AGNODE, const_cast<char*>("fillcolor"), const_cast<char*>("white"));
 	agattr(graph, AGNODE, const_cast<char*>("fontcolor"), const_cast<char*>("black"));
-	// agattr(graph, AGRAPH, const_cast<char*>("label"), const_cast<char*>("aaatest"));   // todo display warning infos here
 
 	ifstream rdStream;
 	rdStream.open(filePath.c_str(), ios::in);

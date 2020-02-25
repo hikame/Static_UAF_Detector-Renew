@@ -598,7 +598,6 @@ bool UafDetectionPass::AnalyzeLoadInst(LoadInst* li, std::shared_ptr<AnalysisSta
 		if(pointerMB == NULL){
 			if(auto sv = std::dynamic_pointer_cast<SymbolicValue>(cvr)){
 				pointerMB = std::shared_ptr<MemoryBlock>(new MemoryBlock(pOpe, Heap, as->globalContext, true));
-				// as->AddVariableRecord(pOpe, pointerMB); //todo delete, following merge will do this
 				as->MergeFakeValueRecord(cvr, pointerMB);
 			}
 			else{
@@ -650,7 +649,6 @@ bool UafDetectionPass::AnalyzeStoreInst(StoreInst* si, std::shared_ptr<AnalysisS
 		if(pointerMB == NULL){
 			if(auto sv = std::dynamic_pointer_cast<SymbolicValue>(cvr)){
 				pointerMB = std::shared_ptr<MemoryBlock>(new MemoryBlock(pOpe, Heap, as->globalContext, true));
-				// as->AddVariableRecord(pOpe, pointerMB); todo delete, this will be down by Merge...
 				as->MergeFakeValueRecord(cvr, pointerMB);
 			}
 			else{
@@ -823,7 +821,6 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 	if(dcMB == NULL){
 		if(std::dynamic_pointer_cast<SymbolicValue>(valueRecord)){
 			std::shared_ptr<MemoryBlock> createdMB(new MemoryBlock(cvalue, Heap, as->globalContext, true));
-			// as->AddVariableRecord(cvalue, createdMB); // todo delete, following merge will do this
 			as->MergeFakeValueRecord(valueRecord, createdMB);
 			valueRecord = createdMB;
 			dcMB = createdMB;
