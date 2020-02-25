@@ -152,19 +152,11 @@ void MemoryBlock::SetContainerRelationship(std::shared_ptr<FieldRelationship> fr
 
 void MemoryBlock::AddNewFieldRelationship_NoLock(std::shared_ptr<FieldRelationship> fr){
 	fieldsFR.insert(fr);
-// todo delete debug
-if(fr->fieldBlock->GetSize() == this->GetSize() && fr->fieldBlock->valueType == this->valueType){
-	OP << "";
-}
 }
 
 void MemoryBlock::AddNewFieldRelationship(std::shared_ptr<FieldRelationship> fr){
 	std::lock_guard<std::mutex> lg(frLock);
 	fieldsFR.insert(fr);
-// todo delete debug
-if(fr->fieldBlock->GetSize() == this->GetSize() && fr->fieldBlock->valueType == this->valueType){
-	OP << "";
-}
 }
 
 Value* MemoryBlock::GetBaseValue(){

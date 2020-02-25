@@ -8,7 +8,7 @@ void foo(int arg) {
   if(bf == NULL)
     return;
   bool cond1 = (arg > 100);
-  // todo current not support % here, therefore arg%2 will generate a symbolic value
+  // current not support % here, therefore arg%2 will generate a symbolic value
   // bool cond2 = (arg % 2 == 0); 
   bool cond2 = (arg < 50); 
   if(cond1 || cond2){

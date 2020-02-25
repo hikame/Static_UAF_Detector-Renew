@@ -211,7 +211,8 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 			runningTasks.insert(tsk[i]);
 		}
 	}
-	todoTasks = std::queue<std::shared_ptr<AnalysisTask>>(); // clear todo list
+	OP << "[Tread-" << GetThreadID() << "] " << "[INF] Start giving up un-handled tasks @ " << GetCurrentTime() << "...\n";
+	todoTasks = std::queue<std::shared_ptr<AnalysisTask>>();
 	OP << "[Tread-" << GetThreadID() << "] " << "[INF] Analysis Finished @ " << GetCurrentTime() << "\n";
 }
 
