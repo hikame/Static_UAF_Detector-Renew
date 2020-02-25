@@ -165,60 +165,19 @@ struct GlobalContext {
   GlobalContext() {
   	UDP = NULL;
   	ssm = NULL;
-  	NumStaticMallocs = 0;
-  	NumDynamicMallocs = 0;
-  	NumUnsafeMallocs = 0;
   	NumFunctions = 0;
-  	NumMallocBytes = 0;
   }
 
   ~GlobalContext() {
   }
 
   // Statistics for allocations.
-  unsigned NumStaticMallocs;
-  unsigned NumDynamicMallocs;
-  unsigned NumUnsafeMallocs;
-  unsigned NumMallocBytes;
   unsigned NumFunctions;
-  std::set<Value *> ValueCounter;
-
   bool memAvaliable = true;
-
-  // Map global function name to function defination.
-  NameFuncMap Funcs;
-
-  // Functions whose addresses are taken.
-  FuncSet AddressTakenFuncs;
-
-  // Map a callsite to all potential callee functions.
-  CalleeMap Callees;
-
-  // Map a function to all potential caller instructions.
-  CallerMap Callers;
-
-  // Indirect call instructions.
-  std::vector<CallInst *>IndirectCallInsts;
 
   // Modules.
   ModuleList Modules;
   ModuleNameMap ModuleMaps;
-  std::set<std::string> InvolvedModules;
-
-  // The store target is safe if it is local.
-  DenseMap<Function*, SmallPtrSet<Value *, 8>>SafeStoreTargets;
-  DenseMap<Function*, SmallPtrSet<Value *, 8>>UnsafeStoreTargets;
-
-  // The signatures of functions that may leak kernel data to user
-  // space, stored in file sink.sig.
-  std::unordered_map<std::string, std::set<int>> SinkFuncs;
-  // Some manaully-verified functions that will not reach sink
-  // functions.
-  std::set<std::string> NonSinkFuncs;
-  // Some manually-summarized functions that initialize
-  // values.
-  std::map<std::string, std::pair<uint8_t, int8_t>> InitFuncs;
-  std::map<std::string, std::tuple<uint8_t, uint8_t, int8_t>> CopyFuncs;
   std::set<std::string> HeapAllocFuncs;
 };
 

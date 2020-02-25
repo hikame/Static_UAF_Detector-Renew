@@ -1,9 +1,6 @@
 //============================================================================
 // Name        : KMDrawer.cpp
 // Author      : Kame Wang
-// Version     :
-// Copyright   : Your copyright notice
-// Description : Hello World in C++, Ansi-style
 //============================================================================
 #include <stdio.h>
 #include <iostream>
@@ -42,29 +39,6 @@ std::string str_replace(std::string str, std::string org, std::string news){
 		str = str.replace(pos, org.length(), news);
 	}
 }
-
-/*
- * @function: 获取cate_dir目录下的所有文件名
- * @param: cate_dir - string类型
- * @result：vector<std::string>类型
-*/
-// void getFiles(char* cate_dir, set<std::string>& files){
-// 	DIR *dir;
-// 	struct dirent *ptr;
-// 	if ((dir = opendir(cate_dir)) == NULL){
-// 		perror("Open dir error...");
-// 		exit(1);
-// 	}
-// 	while ((ptr = readdir(dir)) != NULL){
-// 		if(ptr->d_type == 8){ ///file
-// 			std::stringstream stream;
-// 			stream << cate_dir << "/" << ptr->d_name;
-// 			files.insert(stream.str());
-// 			stream.clear();
-// 		}
-// 		closedir(dir);
-// 	}
-// }
 
 void split(std::string s, std::string delim, vector<std::string>& ret){
 	size_t last = 0;
@@ -155,8 +129,6 @@ Agnode_t* getNode(std::string node, std::string func){
 		agset(ret, const_cast<char*>("shape"), const_cast<char*>("ellipse"));
 		firstNode = false;
 	}
-	// else
-	// 	agset(ret, const_cast<char*>("shape"), const_cast<char*>("rect"));
 	return ret;
 }
 
@@ -177,10 +149,16 @@ void SetBasicBlockLabel(std::string line, bool important){
 	std::string basicBlock = spResult[0];
 	std::string func = subStringBetween(basicBlock, "(", ")");
 
+	std::string lwinfo = spResult[1];
+	spResult.clear();
+	split(lwinfo, "|", spResult);
 	Agnode_t* node = getNode(basicBlock, func);
 	stringstream labelStream;
-	labelStream << "L: " << str_replace(spResult[1], ",", "\\l&");
-	// agset(node, const_cast<char*>("xlabel"), const_cast<char*>(labelStream.str().c_str()));
+	labelStream << "L: " << str_replace(spResult[0], ",", "\\l&");
+	if(spResult[1].length() > 0){
+		labelStream << "\\l!W! " << spResult[1].substr(1);
+	}
+
 	std::string todel = labelStream.str();
 	agset(node, const_cast<char*>("label"), const_cast<char*>(labelStream.str().c_str()));
 
@@ -202,18 +180,7 @@ void SetFunctionLabel(std::string line, char* emitPrefix, bool important){
 		realpath = realpath.substr(strlen(emitPrefix));
 	labelStream << func << "(...) @ \\l." << realpath;
 	agset(graph, const_cast<char*>("label"), const_cast<char*>(labelStream.str().c_str()));
-	// agset(graph, const_cast<char*>("shape"), const_cast<char*>("rect"));
-	
-	// agset(graph, const_cast<char*>("style"), const_cast<char*>("dotted"));
 	agattr(graph, AGRAPH, const_cast<char*>("style"), const_cast<char*>("dotted"));
-
-	// agset(graph, AGRAPH, const_cast<char*>("style"), const_cast<char*>("filled"));
-	// if(!simplify_output && !important)
-	// 	agset(graph, const_cast<char*>("fillcolor"), const_cast<char*>("grey"));
-
-	// agattr(graph, AGRAPH, const_cast<char*>("style"), const_cast<char*>("filled"));
-	// if(!simplify_output && !important)
-	// 	agattr(graph, AGRAPH, const_cast<char*>("fillcolor"), const_cast<char*>("grey"));
 }
 
 std::string simplify_edgestr(std::string str){
@@ -352,7 +319,6 @@ bool HandleResultFile(std::string filePath, char* emitPrefix){
   	graphContext = gvContext(); /* library function */
 
 	graph = agopen(const_cast<char*>(filePath.c_str()), Agdirected, 0);
-	agattr(graph, AGRAPH, const_cast<char*>("label"), const_cast<char*>(""));
 	agattr(graph, AGEDGE, const_cast<char*>("label"), const_cast<char*>(""));
 	agattr(graph, AGNODE, const_cast<char*>("shape"), const_cast<char*>("rect"));
 	agattr(graph, AGNODE, const_cast<char*>("label"), const_cast<char*>(""));
@@ -361,6 +327,7 @@ bool HandleResultFile(std::string filePath, char* emitPrefix){
 	agattr(graph, AGNODE, const_cast<char*>("color"), const_cast<char*>("black"));
 	agattr(graph, AGNODE, const_cast<char*>("fillcolor"), const_cast<char*>("white"));
 	agattr(graph, AGNODE, const_cast<char*>("fontcolor"), const_cast<char*>("black"));
+	// agattr(graph, AGRAPH, const_cast<char*>("label"), const_cast<char*>("aaatest"));   // todo display warning infos here
 
 	ifstream rdStream;
 	rdStream.open(filePath.c_str(), ios::in);
@@ -370,8 +337,6 @@ bool HandleResultFile(std::string filePath, char* emitPrefix){
 		if(line.length() == 0)
 			continue;
 		spResult.clear();
-if(line.find("0x9bbced0(dtls1_hm_fragment_free)|Return&|0x9bf51f0(dtls1_retrieve_buffered_fragment)") != std::string::npos)
-	cout<<"";
 		split(line, ":", spResult);
 		if(spResult[0] == "H")
 			HandleHeadRecord(spResult[1]);
@@ -387,6 +352,15 @@ if(line.find("0x9bbced0(dtls1_hm_fragment_free)|Return&|0x9bf51f0(dtls1_retrieve
 			AddNewEdge(spResult[1], true);
 		else if(spResult[0] == "E(U)")
 			AddNewEdge(spResult[1], false);
+		else if(spResult[0] == "Warning Types"){
+			string ls = spResult[1];
+			ls = str_replace(ls, "; ", "\n");
+			ls = str_replace(ls, " -", ":");
+			ls = str_replace(ls, "_", " ");
+			agattr(graph, AGRAPH, const_cast<char*>("label"), 
+				const_cast<char*>(ls.c_str()));
+		}
+
 	}
 	rdStream.close();
 	gvLayout(graphContext, graph, "dot");
@@ -400,14 +374,10 @@ if(line.find("0x9bbced0(dtls1_hm_fragment_free)|Return&|0x9bf51f0(dtls1_retrieve
 		stream << "_normal.png";
 	std::string outputPath = stream.str();
 	gvRenderFilename (graphContext, graph, const_cast<char*>("png"), const_cast<char*>(outputPath.c_str()));
-	// gvFreeLayout(graphContext, graph);
 	agclose(graph); /* library function */
-	// gvFreeContext(graphContext);
 	graphMap.clear();
 	nodeMap.clear();
 	firstNode = true;
-	// gvFinalize(graphContext);
-	// gvFree(graphContext);
 	return true;
 }
 

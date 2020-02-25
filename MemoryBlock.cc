@@ -152,11 +152,19 @@ void MemoryBlock::SetContainerRelationship(std::shared_ptr<FieldRelationship> fr
 
 void MemoryBlock::AddNewFieldRelationship_NoLock(std::shared_ptr<FieldRelationship> fr){
 	fieldsFR.insert(fr);
+// todo delete debug
+if(fr->fieldBlock->GetSize() == this->GetSize() && fr->fieldBlock->valueType == this->valueType){
+	OP << "";
+}
 }
 
 void MemoryBlock::AddNewFieldRelationship(std::shared_ptr<FieldRelationship> fr){
 	std::lock_guard<std::mutex> lg(frLock);
 	fieldsFR.insert(fr);
+// todo delete debug
+if(fr->fieldBlock->GetSize() == this->GetSize() && fr->fieldBlock->valueType == this->valueType){
+	OP << "";
+}
 }
 
 Value* MemoryBlock::GetBaseValue(){
@@ -222,6 +230,7 @@ std::shared_ptr<FieldRelationship> MemoryBlock::getField(AnalysisState* as, int6
 			OP 	<< "[Tread-" << GetThreadID()
 					<< "] [ERR] find field from a pointer is a strange operation...";
 		}
+		as->RecordWarn(GEP_from_Pointer);
 		eleType = ptType->getElementType();
 		assert(index == 0);  // such as: %24 = getelementptr inbounds i8*, i8** %21, i64 %23 (%23 should be 0)
 	}
@@ -231,6 +240,7 @@ std::shared_ptr<FieldRelationship> MemoryBlock::getField(AnalysisState* as, int6
 			OP 	<< "[Tread-" << GetThreadID()
 					<< "] [ERR] find field from a memoryblock which is not a array or struct or even a pointer...";  
 		}
+		as->RecordWarn(GEP_from_Strange_Type);
  		return NULL;
 	}
 

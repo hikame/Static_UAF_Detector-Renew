@@ -15,8 +15,10 @@
 void AnalysisState::AddMemoryBlockTag(std::shared_ptr<MemoryBlock> mb, std::string name, void* value){
 	std::shared_ptr<MemoryBlockTag> mbt(new MemoryBlockTag(name, value));
 	mbTags.insert(std::pair<std::shared_ptr<MemoryBlock>, std::shared_ptr<MemoryBlockTag>>(mb, mbt));
+	mb->frLock.lock();
 	for(auto fr : mb->GetFields_NoLock())
 		AddMemoryBlockTag(fr->fieldBlock, name, value);
+	mb->frLock.unlock();
 }
 
 void* AnalysisState::GetMemoryBlockTag(std::shared_ptr<MemoryBlock> mb, std::string name){
@@ -196,6 +198,9 @@ std::shared_ptr<AnalysisState> AnalysisState::MakeCopy(){
 	for(std::pair<std::shared_ptr<MemoryBlock>, std::shared_ptr<StoredElement>> pair : mbContainedValues)
 		newAS->RecordMBContainedValue(pair.first, pair.second);
 
+	for(auto pair: warnRecords)
+		newAS->warnRecords.insert(pair);
+
 	newAS->cmpRecords = cmpRecords;
 	for(auto mt : mbTags){
 		if(mt.first.use_count() != mbTags.count(mt.first) * 2)  // clear useless mbTags
@@ -313,10 +318,13 @@ std::shared_ptr<StoredElement> AnalysisState::QueryVariableRecord(Value* variabl
 					else // we believe that the value can be used directly.
 						RecordMBContainedValue(mb, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(initV)));
 				}// end of gVariable->hasInitializer()
-				else if(globalContext->printWN){
-					std::lock_guard<std::mutex> lg(globalContext->opLock);
-					OP << "[Tread-" << GetThreadID() << "] [WRN] Global Variable - " << globalContext->GetInstStr(gVariable) << " has no initializer. \n";
-				}
+				else{
+					if(globalContext->printWN){
+						std::lock_guard<std::mutex> lg(globalContext->opLock);
+						OP << "[Tread-" << GetThreadID() << "] [WRN] Global Variable - " << globalContext->GetInstStr(gVariable) << " has no initializer. \n";
+					}
+					RecordWarn(Global_without_Initializer);
+				} 
 			} // end of trueGlobalInit
 			else if(gVariable->hasInitializer() && isa<FunctionType>(gVariable->getInitializer()->getType())){
 				if(globalContext->printDB){
@@ -452,4 +460,71 @@ void AnalysisState::ClearUselessMBTags(){
 		else
 			tag++;
 	}
+}
+
+void AnalysisState::RecordWarn(WarningType wt){
+	std::list<std::shared_ptr<ExecutionRecord>>::iterator it = executionPath.end();
+	it--;
+	auto bb = (*it)->bb;
+	auto rec = warnRecords.begin(); 
+	while(rec != warnRecords.end()){
+		if(rec->first == bb && rec->second == wt)
+			return;
+		rec++;
+	}
+	warnRecords.insert(std::pair<BasicBlock*, WarningType>(bb, wt));
+}
+
+bool AnalysisState::GetWarnRecord(BasicBlock* bb, std::set<WarningType>& result){
+	auto rec = warnRecords.begin(); 
+	while(rec != warnRecords.end()){
+		if(rec->first == bb)
+			result.insert(rec->second);
+		rec++;
+	}
+	return (result.size() != 0);
+}
+
+std::string AnalysisState::GetWarningTypes(){
+	std::string strings[] = {
+		"Call_Inline_Asm_Function", 
+		"Call_without_Known_Target_Function", 
+		"Call_Target_has_no_Body", 
+		"Call_Depth_Exceed_Limit", 
+
+		"GEP_Failed", 
+		"GEP_with_Symbolic_Index", 
+		"GEP_with_Symbolic_Index_from_NonArrayType", 
+		"GEP_with_Negative_Index", 
+		"GEP_with_Strange_Index", 
+		"GEP_from_Pointer", 
+		"GEP_from_Strange_Type", 
+		"GEP_using_Strange_Size", 
+		"GEP_without_Suitable_Container", 
+
+		"Memcpy_with_Symbolic_Size", 
+		"Memcpy_without_Suitable_Source", 
+		"Memcpy_without_Suitable_Dest", 
+		"Memcpy_with_Mismatched_Source_Dest", 
+		"Memmove_with_Symbolic_Size", 
+		"Memset_with_Strange_Target", 
+		"Memset_with_Symbolic_Size", 
+		"Memset_with_Strange_Field", 
+
+		"Global_without_Initializer", 
+		"Load_from_Larger_MemoryBlock", 
+		"Store_to_Larger_MemoryBlock", 
+		"Return_without_Value_Record"
+	};
+
+	std::set<WarningType> usedTypes;
+	for(auto wr : warnRecords)
+		usedTypes.insert(wr.second);
+
+	std::stringstream tmpss;
+	tmpss << "Warning Types: ";
+	for(int i : usedTypes)
+		tmpss << i << " - " << strings[i] << "; ";
+	
+	return tmpss.str();
 }

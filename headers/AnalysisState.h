@@ -4,11 +4,42 @@
 #include "AnalysisStructHeaders.h"
 #include "KMDriver.h"
 
+enum WarningType{
+	Call_Inline_Asm_Function,
+	Call_without_Known_Target_Function,
+	Call_Target_has_no_Body,
+	Call_Depth_Exceed_Limit,
+
+	GEP_Failed,
+	GEP_with_Symbolic_Index,
+	GEP_with_Symbolic_Index_from_NonArrayType,
+	GEP_with_Negative_Index,
+	GEP_with_Strange_Index,
+	GEP_from_Pointer,
+	GEP_from_Strange_Type,
+	GEP_using_Strange_Size,
+	GEP_without_Suitable_Container,
+
+	Memcpy_with_Symbolic_Size,
+	Memcpy_without_Suitable_Source,
+	Memcpy_without_Suitable_Dest,
+	Memcpy_with_Mismatched_Source_Dest,
+	Memmove_with_Symbolic_Size,
+	Memset_with_Strange_Target,
+	Memset_with_Symbolic_Size,
+	Memset_with_Strange_Field,
+
+	Global_without_Initializer,
+	Load_from_Larger_MemoryBlock,
+	Store_to_Larger_MemoryBlock,
+	Return_without_Value_Record
+};
+
 struct CallRecord{
 	std::mutex lock;
 	Function* func;
 	CallInst* callInst;
-	// std::set<Value*> localVars;
+	
 	CallRecord(Function* f,	CallInst* c){
 		func = f;
 		callInst = c;
@@ -54,6 +85,7 @@ public:
 	bool hasError = false;
 
 	std::list<std::shared_ptr<ExecutionRecord>> executionPath;
+	std::multimap<BasicBlock*, WarningType> warnRecords;
 	std::vector<std::shared_ptr<CallRecord>> callPath;
 	std::multiset<Function*> analyzedFunctions;
 
@@ -62,9 +94,7 @@ public:
 		globalContext = gc;
 	};
 
-	// void GenerateArgMemBlock(Function*, std::shared_ptr<CallRecord>);
 	void GenerateStackMB(AllocaInst*);
-
 	bool ShouldNotContinue(BasicBlock*);
 	bool IsLastAnalyzedBB(BasicBlock* bb);
 	void AddAnalyzedBasicBlock(BasicBlock*, ExecuteRelationship);
@@ -93,6 +123,9 @@ public:
 	void AddMemoryBlockTag(std::shared_ptr<MemoryBlock> mb, std::string name, void* value);
 	void* GetMemoryBlockTag(std::shared_ptr<MemoryBlock> mb, std::string name);
 	void CopyMemoryBlockTags(std::shared_ptr<MemoryBlock> destMB, MemoryBlock* sourceMB);
+	bool GetWarnRecord(BasicBlock* bb, std::set<WarningType>& result);
+	void RecordWarn(WarningType);
+	std::string GetWarningTypes();
 };
 
 #endif

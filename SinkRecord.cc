@@ -7,8 +7,10 @@ std::set<ExecuteRelationship> NoPrintSet;
 //GVC_t* rgContext;
 std::mutex rgLock;
 
-SinkRecord::SinkRecord(std::shared_ptr<MemoryBlock> mb, Instruction* si, Instruction* fi, GlobalContext* ctx){
+SinkRecord::SinkRecord(std::shared_ptr<MemoryBlock> mb, Instruction* si, 
+		Instruction* fi, GlobalContext* ctx, std::shared_ptr<AnalysisState> as){
 	globalContext = ctx;
+	analysisState = as;
 	memoryBlock = mb;
 	sinkInst = si;
 	freeInst = fi;
@@ -48,6 +50,7 @@ SinkRecord::SinkRecord(std::shared_ptr<MemoryBlock> mb, Instruction* si, Instruc
 	opStream << "Malloc Inst: " << globalContext->GetInstStr(sourceInst) << "\n";
 	opStream << "Free Inst: " << globalContext->GetInstStr(freeInst) << "\n";
 	opStream << "Reuse Inst: " << globalContext->GetInstStr(sinkInst) << "\n";
+	opStream << as->GetWarningTypes() << "\n";
 	opStream.flush();
 	return;
 }
@@ -64,7 +67,6 @@ void SinkRecord::RecordBasicBlock(BasicBlock* bb, bool important){
 	printedBB.insert(bb);
 	std::set<int> lineNums;
 	BasicBlock::InstListType& instList = bb->getInstList();
-	// MDNode *scope = bb->getParent()->getMetadata("dbg");
 	for(BasicBlock::iterator instIT = instList.begin(); instIT != instList.end(); instIT++){
 		Instruction* inst = &*instIT;
 		if(!inst->hasMetadata())
@@ -73,12 +75,6 @@ void SinkRecord::RecordBasicBlock(BasicBlock* bb, bool important){
 		DebugLoc dl = inst->getDebugLoc();
 		if(dl.get() == NULL)
 			continue;
-		// TODO: wo don't need the following checks here, I think.
-		// MDNode* mdn = dl.getScope();
-		// if(DILexicalBlock* dilb = dyn_cast<DILexicalBlock>(mdn))
-		// 	mdn = dilb->getScope();
-		// if(mdn != scope)
-		// 	continue;
 		lineNums.insert(dl->getLine());
 	}
 
@@ -109,11 +105,26 @@ void SinkRecord::RecordBasicBlock(BasicBlock* bb, bool important){
 		tmpSS << startNum;
 		if(startNum != endNum)
 			tmpSS << "-" << endNum;
-		tmpSS << "\n";
 	}
 	else
-		tmpSS << bb << "(" << bb->getParent()->getName().str() << ")=?\n";
-	
+		tmpSS << bb << "(" << bb->getParent()->getName().str() << ")=?";
+
+	// for Warn Record
+	tmpSS << "|";
+	std::set<WarningType> wrnSet;
+	analysisState->GetWarnRecord(bb, wrnSet);
+	if(size_t size = wrnSet.size()){
+		tmpSS << "W";
+		size_t i = 0;
+		for(auto w : wrnSet){
+			tmpSS << w;
+			i++;
+			if(i < size - 1)
+				tmpSS << ", ";
+		}
+	}
+
+	tmpSS << "\n";
 	RecordStringIntoFile(tmpSS.str());
 	opStream.flush();
 }

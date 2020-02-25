@@ -275,8 +275,8 @@ int main(int argc, char **argv)
 
   // Main workflow
   // Build global callgraph.
-  CallGraphPass CGPass(&GlobalCtx);
-  CGPass.run(GlobalCtx.Modules);
+  // CallGraphPass CGPass(&GlobalCtx);
+  // CGPass.run(GlobalCtx.Modules);
 
   // The safe allocation pass of KMDriver.
   if (STUAF) {

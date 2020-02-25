@@ -1,9 +1,17 @@
 #include "foo.h"
 #include <stdlib.h>
 
+
+extern int foo3();
+
 char* foo2(char* buf){
   free(buf);
-  return buf;
+  int i = foo3();
+  if(i)
+    return buf;
+  else
+    return NULL;
+  
 }
 
 void foo(int argc) {

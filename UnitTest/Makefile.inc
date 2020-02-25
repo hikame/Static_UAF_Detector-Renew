@@ -8,13 +8,16 @@ LLVM_VER=6.0
 # BUILD_FLAG = -g -O0
 BUILD_FLAG = -pie -fPIC -g -O0 -Wuninitialized 
 
-all: test.bin merged.bc
+all: test.bin merged.bc dis
 
 $(BCS): $(SRCS)
 	clang-$(CLANG_VER) $(BUILD_FLAG) -emit-llvm -c $^ 
 
 merged.bc: $(BCS)
 	llvm-link-$(LLVM_VER) $^ -o $@ 
+
+ : merged.bc
+	llvm-dis-$(LLVM_VER) merged.bc
 
 test.bin: merged.bc
 	clang-$(CLANG_VER) $(BUILD_FLAG) $^ -o $@

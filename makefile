@@ -29,9 +29,9 @@ release: ./builds/kmdriver
 	clang++-$(CLANG_VER) -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -emit-llvm -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
 	./builds/UAFSourceSinkManager.bc ./UAFSourceSinkManager.cc 
 
-./builds/CallGraph.bc: ./CallGraph.cc ./headers/*.h
-	clang++-$(CLANG_VER) -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -emit-llvm -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
-	./builds/CallGraph.bc ./CallGraph.cc 
+# ./builds/CallGraph.bc: ./CallGraph.cc ./headers/*.h
+# 	clang++-$(CLANG_VER) -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -emit-llvm -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
+# 	./builds/CallGraph.bc ./CallGraph.cc 
 
 ./builds/SymbolicValue.bc: ./SymbolicValue.cc ./headers/*.h
 	clang++-$(CLANG_VER) -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -emit-llvm -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
@@ -57,7 +57,7 @@ release: ./builds/kmdriver
 	clang++-$(CLANG_VER) -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -emit-llvm -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
 	./builds/SinkRecord.bc ./SinkRecord.cc 
 
-./builds/kmdriver: ./builds/AnalysisState.bc ./builds/CallGraph.bc ./builds/ConstantValueWrapper.bc ./builds/DataLayoutHelper.bc ./builds/FieldRelationship.bc ./builds/FunctionWrapper.bc ./builds/KMDriver.bc ./builds/MemoryBlock.bc ./builds/SinkRecord.bc ./builds/SymbolicValue.bc ./builds/UAFSourceSinkManager.bc ./builds/UafDetectionPass.bc
+./builds/kmdriver: ./builds/AnalysisState.bc ./builds/ConstantValueWrapper.bc ./builds/DataLayoutHelper.bc ./builds/FieldRelationship.bc ./builds/FunctionWrapper.bc ./builds/KMDriver.bc ./builds/MemoryBlock.bc ./builds/SinkRecord.bc ./builds/SymbolicValue.bc ./builds/UAFSourceSinkManager.bc ./builds/UafDetectionPass.bc
 	clang++-$(CLANG_VER) -lrt -ldl -ltinfo -lpthread -lz -lm -o ./builds/kmdriver \
 	./builds/*.bc -lLLVMIRReader -lLLVMBitReader -lLLVMPasses -lLLVMAsmParser -lLLVMBinaryFormat -lLLVMCore -lLLVMSupport -lstdc++
 
@@ -83,9 +83,9 @@ debug: ./dbg_builds/kmdriver_dbg
 	clang++-$(CLANG_VER) -D_GLIBCXX_DEBUG -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -O0 -emit-llvm -g3 -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
 	./dbg_builds/UAFSourceSinkManager.bc ./UAFSourceSinkManager.cc 
 
-./dbg_builds/CallGraph.bc: ./CallGraph.cc ./headers/*.h
-	clang++-$(CLANG_VER) -D_GLIBCXX_DEBUG -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -O0 -emit-llvm -g3 -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
-	./dbg_builds/CallGraph.bc ./CallGraph.cc 
+# ./dbg_builds/CallGraph.bc: ./CallGraph.cc ./headers/*.h
+# 	clang++-$(CLANG_VER) -D_GLIBCXX_DEBUG -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -O0 -emit-llvm -g3 -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
+# 	./dbg_builds/CallGraph.bc ./CallGraph.cc 
 
 ./dbg_builds/SymbolicValue.bc: ./SymbolicValue.cc ./headers/*.h
 	clang++-$(CLANG_VER) -D_GLIBCXX_DEBUG -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -O0 -emit-llvm -g3 -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
@@ -111,7 +111,7 @@ debug: ./dbg_builds/kmdriver_dbg
 	clang++-$(CLANG_VER) -D_GLIBCXX_DEBUG -I/usr/include/llvm-$(LLVM_VER) -I/usr/include/llvm-c-$(LLVM_VER) -O0 -emit-llvm -g3 -Wall -pthread -c -fmessage-length=0 -fPIC -std=c++0x -o \
 	./dbg_builds/SinkRecord.bc ./SinkRecord.cc 
 
-./dbg_builds/kmdriver_dbg: ./dbg_builds/AnalysisState.bc ./dbg_builds/CallGraph.bc ./dbg_builds/ConstantValueWrapper.bc ./dbg_builds/DataLayoutHelper.bc ./dbg_builds/FieldRelationship.bc ./dbg_builds/FunctionWrapper.bc ./dbg_builds/KMDriver.bc ./dbg_builds/MemoryBlock.bc ./dbg_builds/SinkRecord.bc ./dbg_builds/SymbolicValue.bc ./dbg_builds/UAFSourceSinkManager.bc ./dbg_builds/UafDetectionPass.bc
+./dbg_builds/kmdriver_dbg: ./dbg_builds/AnalysisState.bc ./dbg_builds/ConstantValueWrapper.bc ./dbg_builds/DataLayoutHelper.bc ./dbg_builds/FieldRelationship.bc ./dbg_builds/FunctionWrapper.bc ./dbg_builds/KMDriver.bc ./dbg_builds/MemoryBlock.bc ./dbg_builds/SinkRecord.bc ./dbg_builds/SymbolicValue.bc ./dbg_builds/UAFSourceSinkManager.bc ./dbg_builds/UafDetectionPass.bc
 	clang++-$(CLANG_VER) -O0 -g3 -D_GLIBCXX_DEBUG -lrt -ldl -ltinfo -lpthread -lz -lm -o ./dbg_builds/kmdriver_dbg \
 	./dbg_builds/*.bc -lLLVMIRReader -lLLVMBitReader -lLLVMPasses -lLLVMAsmParser -lLLVMBinaryFormat -lLLVMCore -lLLVMSupport -lstdc++
 

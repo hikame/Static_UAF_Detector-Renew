@@ -627,6 +627,7 @@ bool UafDetectionPass::AnalyzeLoadInst(LoadInst* li, std::shared_ptr<AnalysisSta
 						<< "] [WRN] The source memory block of load is larger than the target type: "
 						<< globalContext->GetInstStr(li) << "\n";
 			}
+			as->RecordWarn(Load_from_Larger_MemoryBlock);
 			break;
 		}
 		pointerMB = fr->GetFieldBlock();
@@ -677,6 +678,7 @@ bool UafDetectionPass::AnalyzeStoreInst(StoreInst* si, std::shared_ptr<AnalysisS
 						<< "] [WRN] The dest memory block of store is larger than the target type: "
 						<< globalContext->GetInstStr(si) << "\n";
 			}
+			as->RecordWarn(Store_to_Larger_MemoryBlock);
 			break;
 		}
 		pointerMB = fr->GetFieldBlock();
@@ -715,6 +717,7 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::HandleGepIndex(GEPOperator* gep,
 						<< "] [ERR] Get element with a dynamic index and this index is not the last one. Not support currently..."
 						<< globalContext->GetInstStr(gep) << "\n";
 			}
+			as->RecordWarn(GEP_with_Symbolic_Index);
 			return NULL;
 		}
 				
@@ -747,6 +750,7 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::HandleGepIndex(GEPOperator* gep,
 							<< "] [WRN] Get element with a dynamic index from a non-ArrayType. Very Strange:"
 							<< globalContext->GetInstStr(gep) << "\n";
 				}
+				as->RecordWarn(GEP_with_Symbolic_Index_from_NonArrayType);
 				return NULL;
 			}
 		}
@@ -849,8 +853,7 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 	// handle the first index value, it indicts whether dcMB could be used directly 
 	// or we should found it from its container based on the index value
 	Value* firstindexOpe = gep->getOperand(1);
-	std::shared_ptr<StoredElement> fiSE = as->QueryVariableRecord(firstindexOpe);
-	if(fiSE){
+	if(auto fiSE = as->QueryVariableRecord(firstindexOpe)){
 		if(auto cvw = std::dynamic_pointer_cast<ConstantValueWrapper>(fiSE)){
 			if(auto ci = dyn_cast<ConstantInt>(cvw->containedValue)){
 				int64_t index = ci->getSExtValue();
@@ -870,6 +873,7 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 									<< "] [WRN] the first index of gep is not 0, but we cannot get the start memoryblock's container: "
 									<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
 						}
+						as->RecordWarn(GEP_without_Suitable_Container);
 					}
 					else{
 						auto container = cfr->containerBlock;
@@ -881,32 +885,44 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 						}
 					}
 				}
-				else if(globalContext->printWN){
+				else{
+					if(globalContext->printWN){
 						std::lock_guard<std::mutex> lg(globalContext->opLock);
 						OP 	<< "[Tread-" << GetThreadID()
-								<< "] [WRN] the first index of gep is positive: "
+								<< "] [WRN] the first index of gep is negative: "
 								<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
+					}
+					as->RecordWarn(GEP_with_Negative_Index);
 				}
 			}
-			else if(globalContext->printWN){
-						std::lock_guard<std::mutex> lg(globalContext->opLock);
-						OP 	<< "[Tread-" << GetThreadID()
-								<< "] [WRN] the ConstantValueWrapper object of the first index of gep is not a constant int: "
-								<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
+			else{
+				if(globalContext->printWN){
+					std::lock_guard<std::mutex> lg(globalContext->opLock);
+					OP 	<< "[Tread-" << GetThreadID()
+							<< "] [WRN] the ConstantValueWrapper object of the first index of gep is not a constant int: "
+							<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
+				}
+				as->RecordWarn(GEP_with_Strange_Index);
 			}
 		}
-		else if(globalContext->printWN){
-			std::lock_guard<std::mutex> lg(globalContext->opLock);
-			OP 	<< "[Tread-" << GetThreadID()
-					<< "] [WRN] the first index of gep is not a ConstantValueWrapper object: "
-					<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
+		else{
+			if(globalContext->printWN){
+				std::lock_guard<std::mutex> lg(globalContext->opLock);
+				OP 	<< "[Tread-" << GetThreadID()
+						<< "] [WRN] the first index of gep is not a ConstantValueWrapper object: "
+						<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
+			}
+			as->RecordWarn(GEP_with_Strange_Index);
 		}
 	}
-	else if(globalContext->printWN){
-		std::lock_guard<std::mutex> lg(globalContext->opLock);
-		OP 	<< "[Tread-" << GetThreadID()
+	else{
+		if(globalContext->printWN){
+			std::lock_guard<std::mutex> lg(globalContext->opLock);
+			OP 	<< "[Tread-" << GetThreadID()
 				<< "] [WRN] the first index of gep has no value record: "
 				<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
+		}
+		as->RecordWarn(GEP_with_Strange_Index);
 	}
 
 	if(retmb == NULL){ // failed to handle the get element operation
@@ -917,9 +933,8 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 					<< "] [WRN] Failed to handle the get element operation: "
 					<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
 		}
-
+		as->RecordWarn(GEP_Failed);
 		auto fakeRecord = std::shared_ptr<MemoryBlock>(new MemoryBlock(Field, this->globalContext, resultEleSize, resultEleType, true));
-		as->AddVariableRecord(gep, fakeRecord);
 	}
 	return retmb;
 }
@@ -1005,6 +1020,7 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 		OP << "[Tread-" << thdStr << "] " << " [WRN] Reaching an inline asm:"
 				<< globalContext->GetInstStr(ci) << "!\n";
 		globalContext->opLock.unlock();
+		as->RecordWarn(Call_Inline_Asm_Function);
 		return false;
 	}
 
@@ -1029,6 +1045,7 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 					OP << "[Tread-" << GetThreadID() << "] [WRN] Cannot determine the called function: "
 							<< globalContext->GetInstStr(ci) << "\n";
 				}
+				as->RecordWarn(Call_without_Known_Target_Function);
 				foundFunc = false;
 				needFakeResult = true;
 			}
@@ -1094,11 +1111,15 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 				OP << "[Tread-" << thdStr << "] " <<
 					"[WRN] Function has no basic blocks and no wrapper: "
 				<< globalContext->GetInstStr(ci) << "\n";
-			else if(excLimit)
+			else// if(excLimit)
 				OP << "[Tread-" << thdStr << "] " <<
 					"[WRN] The call path has reach the depth limitation: "
 				<< globalContext->GetInstStr(ci) << "\n";
 		}
+		if(needFakeResult)
+			as->RecordWarn(Call_Target_has_no_Body);
+		else
+			as->RecordWarn(Call_Depth_Exceed_Limit);		
 
 		std::shared_ptr<SymbolicValue> sv(new SymbolicValue());
 		as->AddVariableRecord(ci, sv);
@@ -1144,6 +1165,11 @@ bool UafDetectionPass::IsLLVMDebugFunction(Function* func){
 
 bool UafDetectionPass::AnalyzeReturnInst(ReturnInst* ri, 
 		std::shared_ptr<AnalysisState>as){
+// todo delete debug
+// if(ri->getParent()->getParent()->getName() == "EVP_PKEY_free"){
+// 	as->PrintExectutionPath();
+// 	OP << ri->getParent()->getParent()->getName() << "\n";
+// }
 	Value* retValue = ri->getReturnValue();
 	std::shared_ptr<CallRecord> lastCR = as->GetLastCall();
 	CallInst* ci = lastCR->callInst;
@@ -1158,6 +1184,7 @@ bool UafDetectionPass::AnalyzeReturnInst(ReturnInst* ri,
 								"[WRN] Returning from function but the returned value has no record:" << globalContext->GetInstStr(retValue) 
 								<< " @ " << ri->getParent()->getParent()->getName() << "\n";
 		}
+		as->RecordWarn(Return_without_Value_Record);
 	}
 	as->AddVariableRecord(newValue, retVR);
 	return false;

@@ -62,7 +62,7 @@ bool UAFSourceSinkManager::IsSink(Instruction* inst, std::shared_ptr<AnalysisSta
 					if(record == NULL)
 						continue;
 					auto cvw = std::dynamic_pointer_cast<ConstantValueWrapper>(record);
-					if(auto cvw = NULL)
+					if(cvw == NULL)
 						continue;
 					if(Function* tmp = dyn_cast<Function>(cvw->containedValue))
 						func = tmp;
@@ -74,6 +74,7 @@ bool UAFSourceSinkManager::IsSink(Instruction* inst, std::shared_ptr<AnalysisSta
 								<< globalContext->GetInstStr(ci) << ".\n";
 							analysisState->globalContext->opLock.unlock();
 						}
+						analysisState->RecordWarn(Call_without_Known_Target_Function);
 					}
 				}
 			}
@@ -218,7 +219,7 @@ SinkRecord* UAFSourceSinkManager::RecordSinkPath(std::shared_ptr<MemoryBlock> mb
 	}
 	bool firstRecord = false;
 	if(targetSR == NULL){
-		targetSR = new SinkRecord(mb, sinkInst, freeInst, globalContext);
+		targetSR = new SinkRecord(mb, sinkInst, freeInst, globalContext, analysisState);
 		sinkRecords.insert(targetSR);
 		firstRecord = true;
 	}

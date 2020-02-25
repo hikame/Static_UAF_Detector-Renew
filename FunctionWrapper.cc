@@ -31,6 +31,7 @@ FunctionWrapper::HandleResult FunctionWrapper::HandleFunction(Function* func, Ca
 						<< "[WRN] SIZE of Memcpy is not a constant int: " << as->globalContext->GetInstStr(sizeValue);
 				as->globalContext->opLock.unlock();
 			}
+			as->RecordWarn(Memcpy_with_Symbolic_Size);
 		}else{
 			size = sizeConst->getValue().getZExtValue();
 			HandleMemcpy(sourceValue, destValue, size, as);
@@ -50,6 +51,7 @@ FunctionWrapper::HandleResult FunctionWrapper::HandleFunction(Function* func, Ca
 						<< "[WRN] SIZE of memmove is not a constant int: " << as->globalContext->GetInstStr(sizeValue);
 				as->globalContext->opLock.unlock();
 			}
+			as->RecordWarn(Memmove_with_Symbolic_Size);
 			//return;
 		}else
 			size = sizeConst->getValue().getZExtValue();
@@ -148,6 +150,7 @@ size_t FunctionWrapper::GetBasicFieldsInRange(MemoryBlock* mb, uint64_t startpos
 					OP << "[Tread-" << thdStr << "] " << "[WRN] [GetBasicFieldsInRange] destSize % eleSize != 0.";
 					globalContext->opLock.unlock();
 				}
+				as->RecordWarn(GEP_using_Strange_Size);
 				return 0;
 			}
 			uint64_t count = arrayType->getArrayNumElements();
@@ -183,6 +186,7 @@ size_t FunctionWrapper::GetBasicFieldsInRange(MemoryBlock* mb, uint64_t startpos
 				OP << "[Tread-" << thdStr << "] " << "[WRN] current mb is not large enough but we cannot get its contaienr.";
 				globalContext->opLock.unlock();
 			}
+			as->RecordWarn(GEP_without_Suitable_Container);
 			return 0;
 		}
 		if(auto cvw = std::dynamic_pointer_cast<ConstantValueWrapper>(containFR->indexVR))
@@ -196,6 +200,7 @@ size_t FunctionWrapper::GetBasicFieldsInRange(MemoryBlock* mb, uint64_t startpos
 				OP << "[Tread-" << thdStr << "] " << "[WRN] current mb is not large enough but its relationship with its container has a strange index value.";
 				globalContext->opLock.unlock();
 			}
+			as->RecordWarn(GEP_without_Suitable_Container);
 			return 0;
 		}
 
@@ -256,6 +261,7 @@ void FunctionWrapper::HandleMemcpy(Value* sourceValue, Value* destValue, uint64_
 			OP << "[Tread-" << thdStr << "] " << "[WRN] cannot get all fields in the size range of source memoryblock.";
 			as->globalContext->opLock.unlock();
 		}
+		as->RecordWarn(Memcpy_without_Suitable_Source);
 		return;
 	}
 	if(dfs_count == 0){
@@ -265,6 +271,7 @@ void FunctionWrapper::HandleMemcpy(Value* sourceValue, Value* destValue, uint64_
 			OP << "[Tread-" << thdStr << "] " << "[WRN] cannot get all fields in the size range of dest memoryblock.";
 			as->globalContext->opLock.unlock();
 		}
+		as->RecordWarn(Memcpy_without_Suitable_Dest);
 		return;
 	} 
 	if(sfs_count != dfs_count){
@@ -274,6 +281,7 @@ void FunctionWrapper::HandleMemcpy(Value* sourceValue, Value* destValue, uint64_
 			OP << "[Tread-" << thdStr << "] " << "[WRN] we cannot handle the situation that the amount of source fields and dest fields mismatch...";
 			as->globalContext->opLock.unlock();
 		}
+		as->RecordWarn(Memcpy_with_Mismatched_Source_Dest);
 		return;
 	}
 
@@ -289,6 +297,7 @@ void FunctionWrapper::HandleMemcpy(Value* sourceValue, Value* destValue, uint64_
 				OP << "[Tread-" << thdStr << "] " << "[WRN] we cannot handle the situation that the size of source field and dest field mismatch...";
 				as->globalContext->opLock.unlock();
 			}
+			as->RecordWarn(Memcpy_with_Mismatched_Source_Dest);
 			return;
 		}
 
@@ -308,6 +317,7 @@ void FunctionWrapper::HandleMemset(CallInst* ci, std::shared_ptr<AnalysisState> 
 			OP << "[Tread-" << thdStr << "] " << "[WRN] Target of memset is not a memory block: " << destVR.get();
 			as->globalContext->opLock.unlock();
 		}
+		as->RecordWarn(Memset_with_Strange_Target);
 		return;
 	}
 
@@ -332,6 +342,7 @@ void FunctionWrapper::HandleMemset(CallInst* ci, std::shared_ptr<AnalysisState> 
 					as->globalContext->GetInstStr(sizeValue);
 			as->globalContext->opLock.unlock();
 		}
+		as->RecordWarn(Memset_with_Symbolic_Size);
 		return;
 	}else
 		size = sizeConst->getValue().getZExtValue();
@@ -356,7 +367,7 @@ void FunctionWrapper::HandleMemset(CallInst* ci, std::shared_ptr<AnalysisState> 
 						<<	as->globalContext->GetInstStr(ci);
 					as->globalContext->opLock.unlock();
 				}
-
+				as->RecordWarn(Memset_with_Strange_Field);
 				IntegerType* it = IntegerType::getIntNTy(*as->globalContext->llvmContext, dmb->GetSize() * 8 /*size in bits*/);
 				newValueOpe = std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(ConstantInt::get(it, 0)));
 			}

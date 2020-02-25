@@ -11,6 +11,7 @@ extern std::string StartMethod;
 class SinkRecord{
 public:
 	GlobalContext* globalContext = NULL;
+	std::shared_ptr<AnalysisState> analysisState = NULL;
 	std::shared_ptr<MemoryBlock> memoryBlock = NULL;
 	Instruction* sinkInst = NULL;
 	Instruction* freeInst = NULL;
@@ -25,7 +26,8 @@ public:
 	std::set<BasicBlock*> printedBB;
 	std::mutex bbLock;
 
-	SinkRecord(std::shared_ptr<MemoryBlock> mb, Instruction* sinkInst, Instruction* freeInst, GlobalContext* ctx);
+	SinkRecord(std::shared_ptr<MemoryBlock> mb, Instruction* sinkInst, 
+		Instruction* freeInst, GlobalContext* ctx, std::shared_ptr<AnalysisState> analysisState);
 
 	~SinkRecord();
 	void HandleNewPath(std::list<std::shared_ptr<ExecutionRecord>>& execRecords, bool firstRecord = false);

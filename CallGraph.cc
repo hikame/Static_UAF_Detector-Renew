@@ -84,61 +84,6 @@ void CallGraphPass::findCalleesByType(CallInst *CI, FuncSet &S) {
 }
 
 bool CallGraphPass::doInitialization(Module *M) {
-
-  DL = &(M->getDataLayout());
-  Int8PtrTy = Type::getInt8PtrTy(M->getContext());
-  IntPtrTy = DL->getIntPtrType(M->getContext());
-
-  for (Function &F : *M) { 
-    // Collect address-taken functions.
-    if (F.hasAddressTaken())
-      globalContext->AddressTakenFuncs.insert(&F);
-
-    // Collect global function definitions.
-    if (F.hasExternalLinkage() && !F.empty()) {
-      // External linkage always ends up with the function name.
-      StringRef FName = F.getName();
-      // Special case: make the names of syscalls consistent.
-      if (FName.startswith("SyS_"))
-        FName = StringRef("sys_" + FName.str().substr(4));
-
-      // Map functions to their names.
-      globalContext->Funcs[FName] = &F;
-    }
-  }
-
-  // Use type-analysis to concervatively find possible targets of 
-  // indirect calls.
-  for (Module::iterator f = M->begin(), fe = M->end(); 
-      f != fe; ++f) {
-
-    Function *F = &*f;
-    for (inst_iterator i = inst_begin(F), e = inst_end(F); 
-        i != e; ++i) {
-      // Map callsite to possible callees.
-      if (CallInst *CI = dyn_cast<CallInst>(&*i)) {
-        FuncSet FS;
-        Function *CF = CI->getCalledFunction();
-        if (!CF) {
-#ifdef SOUND_MODE
-          findCalleesByType(CI, FS);
-#endif
-          globalContext->Callees[CI] = FS;
-
-          for (Function *Callee : FS)
-            globalContext->Callers[Callee].insert(CI);
-
-          // Save called values for future uses.
-          globalContext->IndirectCallInsts.push_back(CI);
-        }
-        else {
-          FS.insert(CF);
-          globalContext->Callees[CI] = FS;
-          globalContext->Callers[CF].insert(CI);
-        }
-      }
-    }
-  }
   return false;
 }
 
