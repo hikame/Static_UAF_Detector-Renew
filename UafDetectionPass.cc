@@ -254,7 +254,7 @@ void* UafDetectionPass::SysMemWatchdog(void* arg){
 				swapfree = tmp;
 			if(memtotal != -1 && memfree != -1 && swaptotal != -1 && swapfree != -1){
 				double perc = (memfree + swapfree) * 100 / (memtotal + swaptotal);
-				gc->memAvaliable = (perc > MEMTHREADHOLD);
+				gc->memAvaliable = (perc > gc->MemThreadHold);
 				break;
 			}
 		}

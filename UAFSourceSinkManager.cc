@@ -172,18 +172,20 @@ int UAFSourceSinkManager::AnalyzeTag(Instruction* inst, std::shared_ptr<Analysis
 		}
 
 		if(globalContext->printDB){
+			std::lock_guard<std::mutex> lg(analysisState->globalContext->opLock);
 			if(fmb->isFake || fmb->GetBaseValue() == NULL){
-				std::lock_guard<std::mutex> lg(analysisState->globalContext->opLock);
 				OP << "[Tread-" << GetThreadID() << "] " <<
 						"[DBG] [Free] A Fake Memory is Freed by " << analysisState->globalContext->GetInstStr(inst) << "\n";
 			}
 			else if(Instruction* baseInst = dyn_cast<Instruction>(fmb->GetBaseValue())){
-				std::lock_guard<std::mutex> lg(analysisState->globalContext->opLock);
 				OP << "[Tread-" << GetThreadID() << "] " <<
 					"[DBG] [Free] Memory Based on "
 						<< analysisState->globalContext->GetInstStr(baseInst) << " is Freed by "
 						<< analysisState->globalContext->GetInstStr(inst) << "\n";
 			}
+			OP << "[Tread-" << GetThreadID() << "] " <<
+					"[DBG] [Free] Current Execute Path is: \n";
+			analysisState->PrintExectutionPath(true);
 		}
 
 		analysisState->AddMemoryBlockTag(fmb, "FreeInst", ci);

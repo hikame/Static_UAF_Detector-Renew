@@ -99,6 +99,7 @@ struct GlobalContext {
   unsigned thdPerCPU = 0;
   unsigned bbAnaLimit = 1;
   unsigned funcAnaLimit = 6;
+  unsigned MemThreadHold = 20;
 
   DataLayoutHelper* dlHelper = NULL;
   std::set<ExecuteRelationship> LoopCheckSet;

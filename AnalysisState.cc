@@ -267,10 +267,11 @@ void AnalysisState::MergeFakeValueRecord(std::shared_ptr<StoredElement> v1, std:
 		RecordMBContainedValue(todoMB, v1);
 }
 
-void AnalysisState::PrintExectutionPath(){
+void AnalysisState::PrintExectutionPath(bool completePath, bool needConsoleLock){
 	std::string thdStr = GetThreadID();
-	std::lock_guard<std::mutex> lg(globalContext->opLock);
-	if(globalContext->printTC){
+	if(needConsoleLock)
+		globalContext->opLock.lock();
+	if(globalContext->printTC || completePath){
 		OP << "[Tread-" << thdStr << "]" << " [EXP] ========= Current Execution Path. =========\n";
 		for(std::list<std::shared_ptr<ExecutionRecord>>::iterator it = executionPath.begin();
 			it != executionPath.end(); it++){
@@ -296,6 +297,8 @@ void AnalysisState::PrintExectutionPath(){
 			<< UafDetectionPass::GetBasicBlockLines(bb) 
 			<< " - " << erstr << "\n";
 	}
+	if(needConsoleLock)
+		globalContext->opLock.unlock();
 }
 
 

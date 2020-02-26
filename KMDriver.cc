@@ -56,6 +56,11 @@ cl::opt<unsigned> FuncAnalysisTimeLimit(
     "funcAnalyzeLimit", cl::desc("The limit of analysis times of every function (default is 6)"),
     cl::init(6));
 
+cl::opt<unsigned> RemainingMemoryThreadHold(
+    "re_mem", cl::desc("The limit of remaining memory threadhold (default is 20 percents), \
+analysis will stop if the remaining memory is lower than this."),
+    cl::init(20));
+
 cl::opt<unsigned> ThreadsPerCPU(
     "tpcpu", cl::desc("The thread count per cpu (default is 1)"),
     cl::init(1));
@@ -298,6 +303,7 @@ int main(int argc, char **argv)
     GlobalCtx.thdPerCPU = ThreadsPerCPU;
     GlobalCtx.bbAnaLimit = BBAnalysisTimeLimit;
     GlobalCtx.funcAnaLimit = FuncAnalysisTimeLimit;
+    GlobalCtx.MemThreadHold = RemainingMemoryThreadHold;
     GlobalCtx.initIgnoredFuncs(Ignored_Func_List_Record.getValue());
     GlobalCtx.outputPath = OuputPath.getValue();
 
