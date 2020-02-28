@@ -1499,6 +1499,17 @@ void UafDetectionPass::PrintThreadSum(UafDetectionPass* pass, std::string thdStr
 }
 
 bool UafDetectionPass::CheckConstantEqual(Constant* c1, Constant* c2){
+// todo delete debug
+bool tmp1 = isa<ConstantPointerNull>(c1);
+bool tmp2 = isa<ConstantPointerNull>(c2);
+auto tmp3 = dyn_cast<ConstantFP>(c1);
+auto tmp4 = dyn_cast<ConstantFP>(c2);
+auto tmp5 = dyn_cast<ConstantInt>(c1);
+auto tmp6 = dyn_cast<ConstantInt>(c2);
+auto tmp7 = dyn_cast<Function>(c1);
+auto tmp8 = dyn_cast<Function>(c2);
+	if(c1 == c2)
+		return true;
 	if(isa<ConstantPointerNull>(c1) && isa<ConstantPointerNull>(c2))
 		return true;
 	if(isa<ConstantPointerNull>(c1) && isa<ConstantInt>(c2))
