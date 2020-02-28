@@ -216,8 +216,12 @@ size_t FunctionWrapper::GetBasicFieldsInRange(MemoryBlock* mb, uint64_t startpos
 		}
 		else if(ArrayType* arrayType = dyn_cast<ArrayType>(cvt))
 			startpos = startpos + mbsize * containindex;
-		else 
+		else{
+			globalContext->opLock.lock();
+			OP << "[ERR] " << cvt->getTypeID() << "\n";
+			globalContext->opLock.unlock();
 			assert(0);  // unlikely to happen
+		}
 
 		if(GetBasicFieldsInRange(containerMB, startpos, destsize, record, as) == 0)
 			return 0;

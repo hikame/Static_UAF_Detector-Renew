@@ -14,7 +14,8 @@ private:
     std::string tmS1;
     std::string tmS2;
     GlobalContext *globalContext;
-    std::queue<std::shared_ptr<AnalysisTask>> todoTasks;
+    // std::queue<std::shared_ptr<AnalysisTask>> todoTasks;
+    std::vector<std::shared_ptr<AnalysisTask>> todoTasks;
     size_t threadPoolLimit = 0;
 
     Type *IntPtrTy = NULL;

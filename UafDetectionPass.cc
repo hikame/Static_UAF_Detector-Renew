@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <sys/time.h>
+#include <cstdlib>
 
 #include "headers/Config.h"
 #include "headers/Common.h"
@@ -198,8 +199,9 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 		// takeout a new task
 		globalContext->tpLock.lock();
 		for(size_t i = 0; i < space; i++){
-			tsk[i] = todoTasks.front();
-			todoTasks.pop();
+			size_t ridx = rand() % todoTasks.size();
+			tsk[i] = todoTasks[ridx];
+			todoTasks.erase(todoTasks.begin() + ridx);
 			if(todoTasks.size() == 0)
 				space = i + 1;
 		}
@@ -215,10 +217,10 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 		OP << "[Tread-" << GetThreadID() << "] " 
 		<< "[INF] Start giving up un-handled tasks @ " 
 		<< GetCurrentTime() << "...\n";
-	todoTasks = std::queue<std::shared_ptr<AnalysisTask>>();
 	OP << "[Tread-" << GetThreadID() << "] " 
 	<< "[INF] Analysis Finished @ " 
 	<< GetCurrentTime() << "\n";
+	exit(0);  // todo, this is a argly way to quit
 }
 
 void* UafDetectionPass::SysMemWatchdog(void* arg){
@@ -1485,7 +1487,7 @@ bool UafDetectionPass::AnalyzeCmpInst(CmpInst* ci, std::shared_ptr<AnalysisState
 void UafDetectionPass::CreateAnalysisTask_NoLock(BasicBlock* bb,
 		std::shared_ptr<AnalysisState> as, Instruction* si, ExecuteRelationship er, std::string thread){
 	auto at = std::shared_ptr<AnalysisTask>(new AnalysisTask(bb, as, si, this, er, thread));
-	todoTasks.push(at);
+	todoTasks.push_back(at);
 	return;
 }
 
