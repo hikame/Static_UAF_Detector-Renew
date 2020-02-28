@@ -185,7 +185,7 @@ int UAFSourceSinkManager::AnalyzeTag(Instruction* inst, std::shared_ptr<Analysis
 			}
 			OP << "[Tread-" << GetThreadID() << "] " <<
 					"[DBG] [Free] Current Execute Path is: \n";
-			analysisState->PrintExectutionPath(true);
+			analysisState->PrintExectutionPath(true, false);
 		}
 
 		analysisState->AddMemoryBlockTag(fmb, "FreeInst", ci);

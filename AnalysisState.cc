@@ -353,10 +353,9 @@ std::shared_ptr<StoredElement> AnalysisState::QueryVariableRecord(
 							Constant* value = ca->getOperand(i);
 							if(!isa<ConstantAggregateZero>(value)){
 								uint64_t size = globalContext->dlHelper->GetTypeStoreSize(value->getType());
-								auto fr = mb->FindFieldRelationship(i, size);
-								assert(fr != NULL);
+								auto fr = mb->getField(this, i);
+								assert(fr->size == size);
 								std::shared_ptr<MemoryBlock> fmb = fr->GetFieldBlock();
-								assert(fmb != NULL);
 								RecordMBContainedValue(fmb, std::shared_ptr<ConstantValueWrapper>(new ConstantValueWrapper(value)));
 							}
 						}

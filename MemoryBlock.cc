@@ -268,10 +268,11 @@ void MemoryBlock::resetType(Type* type){
 	if(valueType->isSized())
 		size = dlHelper->GetTypeStoreSize(valueType);
 
-	// clear up the fields
-	frLock.lock();
-	for(std::shared_ptr<FieldRelationship> fr : fieldsFR)
-		fr->fieldBlock->containerFR = NULL; 
-	fieldsFR.clear();   // for fields currently recorded, clear them.
-	frLock.unlock();
+	// todo check this
+	// // clear up the fields
+	// frLock.lock();
+	// for(std::shared_ptr<FieldRelationship> fr : fieldsFR)
+	// 	fr->fieldBlock->containerFR = NULL; 
+	// fieldsFR.clear();   // for fields currently recorded, clear them.
+	// frLock.unlock();
 }

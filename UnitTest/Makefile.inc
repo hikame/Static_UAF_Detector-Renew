@@ -26,17 +26,17 @@ run:
 	./test.bin
 
 show:
+	kmdrawer -e "$(PWD)" ./
+	kmdrawer -s -e "$(PWD)" ./
 	code ./*_normal.png ./*.c
 
 test: merged.bc
-	kmdriver -bbAnalyzeLimit 2 -cplimit 10 -ctn false -printTC true -printER true -printDB true -printWN true -tm main -suaf -o "$(PWD)" -ifs /home/kame/workspace/Static_UAF_Detector/KMDriver_v5/ignored_function_list.conf "$(PWD)/merged.bc"
-	kmdrawer -e "$(PWD)" ./
-	kmdrawer -s -e "$(PWD)" ./
+	kmdriver_dbg -bbAnalyzeLimit 2 -cplimit 10 -ctn false -printTC true -printER true -printDB true -printWN true -tm main -suaf -o "$(PWD)" -ifs /home/kame/workspace/Static_UAF_Detector/KMDriver_v5/ignored_function_list.conf "$(PWD)/merged.bc"
 
 retest: clean test dis show 
 
 help:
-	echo "kmdriver -cplimit 10 -ctn false -printER true -printDB true -printEP true -printWN true -tm main -suaf -o \"$(PWD)\" -ifs /home/kame/workspace/Static_UAF_Detector/KMDriver_v5/ignored_function_list.conf \"$(PWD)/merged.bc\""
+	echo "kmdriver_dbg -cplimit 10 -ctn false -printER true -printDB true -printEP true -printWN true -tm main -suaf -o \"$(PWD)\" -ifs /home/kame/workspace/Static_UAF_Detector/KMDriver_v5/ignored_function_list.conf \"$(PWD)/merged.bc\""
 
 clean:
 	@rm -rf *.bin *.bc *.ll *.kmd *.png

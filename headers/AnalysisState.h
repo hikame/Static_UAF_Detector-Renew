@@ -112,7 +112,7 @@ public:
 	std::shared_ptr<CallRecord> GetLastCall();
 	std::shared_ptr<AnalysisState> MakeCopy();
 	void MergeFakeValueRecord(std::shared_ptr<StoredElement> variable, std::shared_ptr<StoredElement> value);
-	void PrintExectutionPath(bool completePath = false, bool needConsoleLock = false);
+	void PrintExectutionPath(bool completePath = false, bool needConsoleLock = true);
 	void PrepareForStep2();
 	void ClearUselessMBTags();
 	~AnalysisState();

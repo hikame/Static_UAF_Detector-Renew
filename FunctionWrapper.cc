@@ -28,7 +28,7 @@ FunctionWrapper::HandleResult FunctionWrapper::HandleFunction(Function* func, Ca
 			if(as->globalContext->printWN){
 				as->globalContext->opLock.lock();
 				OP << "[Tread-" << thdStr << "] "
-						<< "[WRN] SIZE of Memcpy is not a constant int: " << as->globalContext->GetInstStr(sizeValue);
+						<< "[WRN] SIZE of Memcpy is not a constant int: " << as->globalContext->GetInstStr(sizeValue) << "\n";
 				as->globalContext->opLock.unlock();
 			}
 			as->RecordWarn(Memcpy_with_Symbolic_Size);
@@ -242,11 +242,44 @@ size_t FunctionWrapper::GetBasicFieldsInRange(std::shared_ptr<MemoryBlock> mb,
 }
 
 void FunctionWrapper::HandleMemcpy(Value* sourceValue, Value* destValue, uint64_t size, std::shared_ptr<AnalysisState> as){
-	auto sourceVR = as->QueryVariableRecord(sourceValue);
-	auto destVR = as->QueryVariableRecord(destValue);
+	auto sourceVR = as->GetVariableRecord(sourceValue);
+	auto destVR = as->GetVariableRecord(destValue);
 	auto sourceMB = std::dynamic_pointer_cast<MemoryBlock>(sourceVR);
 	auto destMB = std::dynamic_pointer_cast<MemoryBlock>(destVR);
-	assert(sourceMB != NULL && destMB != NULL);
+	
+	if(sourceMB == NULL){
+		if(auto sv = std::dynamic_pointer_cast<SymbolicValue>(sourceVR)){
+			sourceMB = std::shared_ptr<MemoryBlock>(
+				new MemoryBlock(sourceValue, Heap, as->globalContext, true));
+			as->MergeFakeValueRecord(sourceVR, sourceMB);
+		}
+		else{
+			if(globalContext->printER){
+				std::lock_guard<std::mutex> lg(globalContext->opLock);
+				OP << "[Tread-" << GetThreadID() << 
+					"] [ERR] Memcpy from a non-memoryblock.\n";
+			}
+			as->hasError = true;
+			return;
+		}
+	}
+
+	if(destMB == NULL){
+		if(auto sv = std::dynamic_pointer_cast<SymbolicValue>(destVR)){
+			destMB = std::shared_ptr<MemoryBlock>(
+				new MemoryBlock(destValue, Heap, as->globalContext, true));
+			as->MergeFakeValueRecord(destVR, destMB);
+		}
+		else{
+			if(globalContext->printER){
+				std::lock_guard<std::mutex> lg(globalContext->opLock);
+				OP << "[Tread-" << GetThreadID() << 
+					"] [ERR] Memcpy to a non-memoryblock.\n";
+			}
+			as->hasError = true;
+			return;
+		}
+	}
 
 	// get all the basic fields (fields that store basic data types) in range
 	std::vector<std::shared_ptr<MemoryBlock>> sourceFields;

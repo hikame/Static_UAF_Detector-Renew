@@ -155,7 +155,7 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 			}
 			if(foundFinished)
 				continue;
-			usleep(100); 
+			usleep(10); 
 			
 			// check do we need out logs
 			gettimeofday(&tv, NULL);
@@ -211,9 +211,14 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 			runningTasks.insert(tsk[i]);
 		}
 	}
-	OP << "[Tread-" << GetThreadID() << "] " << "[INF] Start giving up un-handled tasks @ " << GetCurrentTime() << "...\n";
+	if(todoTasks.size() > 0)
+		OP << "[Tread-" << GetThreadID() << "] " 
+		<< "[INF] Start giving up un-handled tasks @ " 
+		<< GetCurrentTime() << "...\n";
 	todoTasks = std::queue<std::shared_ptr<AnalysisTask>>();
-	OP << "[Tread-" << GetThreadID() << "] " << "[INF] Analysis Finished @ " << GetCurrentTime() << "\n";
+	OP << "[Tread-" << GetThreadID() << "] " 
+	<< "[INF] Analysis Finished @ " 
+	<< GetCurrentTime() << "\n";
 }
 
 void* UafDetectionPass::SysMemWatchdog(void* arg){
@@ -510,7 +515,14 @@ bool UafDetectionPass::AnalyzeInst(Instruction* targetInst, std::shared_ptr<Anal
 		if(!globalContext->continueAAS)
 			return true;
 	}
-
+//todo delete debug ---
+// if(targetInst->getParent()->getParent()->getName() == "tls_get_message_body")
+// 	if(globalContext->GetInstStr(targetInst).find("%55 = call i32 %45(%struct.ssl_st.6325* %46, i32 22, i32* null, i8* %52, i32 %54, i32 0)") != std::string::npos){
+// 		as->PrintExectutionPath(true);
+// 		OP << "";
+// 		return true;
+// 	}
+// end of debug ---
 	// add some tag, such as freed.
 	int shouldContinue = globalContext->ssm->AnalyzeTag(targetInst, as);
 	if(shouldContinue == 0)
@@ -780,7 +792,7 @@ bool UafDetectionPass::AnalyzeGEPInst(GetElementPtrInst* gepInst, std::shared_pt
 	std::shared_ptr<MemoryBlock> mb = AnalyzeGEPOperator(dyn_cast<GEPOperator>(gepInst), as.get(), &newASSet);
 	if(globalContext->shouldQuit) // the analysis may should quit
 		return true;
-	if(mb == NULL){
+	if(mb == NULL){  // unlikely
 		if(globalContext->printER){
 			std::lock_guard<std::mutex> lg(globalContext->opLock);
 			OP 	<< "[Tread-" << GetThreadID()
@@ -858,30 +870,62 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 			if(auto ci = dyn_cast<ConstantInt>(cvw->containedValue)){
 				int64_t index = ci->getSExtValue();
 				if(index == 0){
-					if(setype != dcMB->valueType){
+					if(setype != dcMB->valueType 
+							&& setype->isSized()
+							&& globalContext->dlHelper->GetTypeStoreSize(setype) == dcMB->GetSize()){  // todo check this
+						if(globalContext->printWN){
+							std::lock_guard<std::mutex> lg(globalContext->opLock);
+							OP 	<< "[Tread-" << GetThreadID()
+								<< "] [WRN] In order to handle gep instruction (" 
+								<< globalContext->GetInstStr(gep) << "), "
+								<< "Cast the memory block of container from " 
+								<< dcMB->valueType->getTypeID()	<< " to "
+								<< setype->getTypeID() <<".\n";
+						}
 						dcMB->resetType(setype);
 					}
 					retmb = HandleGepIndex(gep, 2, as, dcMB, newASSet); // use dcMB directly
 				}
 				else if(index > 0){
 					// we need to find dcMB from dcMB's container
+					MemoryBlock* container = NULL;
 					auto cfr = dcMB->GetContainerFR();
 					if(cfr == NULL || cfr->containerBlock == NULL){
-						if(globalContext->printWN){
-							std::lock_guard<std::mutex> lg(globalContext->opLock);
-							OP 	<< "[Tread-" << GetThreadID()
-									<< "] [WRN] the first index of gep is not 0, but we cannot get the start memoryblock's container: "
-									<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
+						if(auto pt = dyn_cast<ArrayType>(dcMB->valueType)){
+							if(auto it = dyn_cast<IntegerType>(pt->getElementType()))
+								if(resultEleType == it && it->getBitWidth() == 8)
+									container = dcMB.get();
 						}
-						as->RecordWarn(GEP_without_Suitable_Container);
-					}
-					else{
-						auto container = cfr->containerBlock;
-						if(auto fr = container->getField(as, index)){
-							if(setype != dcMB->valueType){
-								dcMB->resetType(setype);
+						else {
+							if(globalContext->printWN){
+								std::lock_guard<std::mutex> lg(globalContext->opLock);
+								OP 	<< "[Tread-" << GetThreadID()
+										<< "] [WRN] the first index of gep is not 0, but we cannot get the start memoryblock's container: "
+										<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
 							}
-							retmb = HandleGepIndex(gep, 2, as, dcMB, newASSet);  // start from the second index
+							as->RecordWarn(GEP_without_Suitable_Container);
+						}
+					}
+					else
+						container = cfr->containerBlock;
+					if(container){
+						if(auto fr = container->getField(as, index)){
+							if(setype != container->valueType 
+									&& setype->isSized()
+									&& globalContext->dlHelper->GetTypeStoreSize(setype) == container->GetSize()){  // todo check this
+								if(globalContext->printWN){
+									std::lock_guard<std::mutex> lg(globalContext->opLock);
+									OP 	<< "[Tread-" << GetThreadID()
+										<< "] [WRN] In order to handle gep instruction (" 
+										<< globalContext->GetInstStr(gep) << "),"
+										<< "Cast the memory block of container from " 
+										<< container->valueType->getTypeID()	<< " to "
+										<< setype->getTypeID() <<".\n";
+								} // todo record warn into as
+								container->resetType(setype);
+							}
+							// start from the second index
+							retmb = HandleGepIndex(gep, 2, as, fr->fieldBlock, newASSet);
 						}
 					}
 				}
@@ -892,7 +936,7 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 								<< "] [WRN] the first index of gep is negative: "
 								<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
 					}
-					as->RecordWarn(GEP_with_Negative_Index);
+					as->RecordWarn(GEP_with_Negative_Index);						
 				}
 			}
 			else{
@@ -926,7 +970,6 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 	}
 
 	if(retmb == NULL){ // failed to handle the get element operation
-		// we should not call GetVariableRecord, because that function will treat gep operations specially
 		if(globalContext->printWN){
 			std::lock_guard<std::mutex> lg(globalContext->opLock);
 			OP 	<< "[Tread-" << GetThreadID()
@@ -934,7 +977,22 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* g
 					<< globalContext->GetInstStr(gep) << ". Will generate a fake memory block for it.\n";
 		}
 		as->RecordWarn(GEP_Failed);
-		auto fakeRecord = std::shared_ptr<MemoryBlock>(new MemoryBlock(Field, this->globalContext, resultEleSize, resultEleType, true));
+		// for the following special situation, provide solution
+		if(gep->getNumIndices() == 1)
+			if(auto pt = dyn_cast<ArrayType>(dcMB->valueType))
+				if(auto it = dyn_cast<IntegerType>(pt->getElementType()))
+					if(resultEleType == it && it->getBitWidth() == 8){
+						auto fiSE = as->GetVariableRecord(firstindexOpe);
+						auto fld = dcMB->getField(as,
+							std::dynamic_pointer_cast<SymbolicValue>(fiSE));
+						if(fld)
+							retmb = fld->fieldBlock;
+					}
+
+		// we should not call GetVariableRecord, because that function will treat gep operations specially
+		if(retmb == NULL){
+			retmb = std::shared_ptr<MemoryBlock>(new MemoryBlock(Field, this->globalContext, resultEleSize, resultEleType, true));
+		}
 	}
 	return retmb;
 }
@@ -1030,7 +1088,7 @@ bool UafDetectionPass::AnalyzeCallInst(CallInst* ci, std::shared_ptr<AnalysisSta
 	if (!(func = ci->getCalledFunction())) {
 		Value* v = ci->getCalledValue()->stripPointerCasts();
 		if(!(func = dyn_cast<Function>(&*v))){
-			auto valueR = as->GetVariableRecord(v);
+			auto valueR = as->QueryVariableRecord(v);
 			if(auto cvw = std::dynamic_pointer_cast<ConstantValueWrapper>(valueR)){
 				if(Function* tmp = dyn_cast<Function>(cvw->containedValue))
 					func = tmp;
