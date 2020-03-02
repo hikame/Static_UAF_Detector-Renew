@@ -147,7 +147,11 @@ void SinkRecord::RecordFunction(Function* func, bool important){
 	// 	leftpos = 0;
 	// std::string::size_type lenth = director.length();
 	// std::string director = director.substr(leftpos, lenth - leftpos);
-	tmpSS << director << "/" << dis->getFilename().str() << "\n";
+	std::string fn = dis->getFilename().str();
+	if(fn.find(director) == std::string::npos)
+		tmpSS << director << "/" << dis->getFilename().str() << "\n";
+	else
+		tmpSS << dis->getFilename().str() << "\n";
 	RecordStringIntoFile(tmpSS.str());
 	opStream.flush();
 }

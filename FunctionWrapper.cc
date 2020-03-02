@@ -153,6 +153,16 @@ size_t FunctionWrapper::GetBasicFieldsInRange(MemoryBlock* mb, uint64_t startpos
 				as->RecordWarn(GEP_using_Strange_Size);
 				return 0;
 			}
+			if(destsize / eleSize > 1024){
+				if(globalContext->printWN){
+					std::string thdStr = GetThreadID();
+					globalContext->opLock.lock();
+					OP << "[Tread-" << thdStr << "] " << "[WRN] [GetBasicFieldsInRange] too many elements in an array.\n";
+					globalContext->opLock.unlock();
+				}
+				as->RecordWarn(GEP_using_Strange_Size);
+				return 0;
+			}
 			uint64_t count = arrayType->getArrayNumElements();
 			for(int64_t index = 0; index < count; index++){
 				pos = eleSize * index;
