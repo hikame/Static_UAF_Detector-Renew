@@ -14,8 +14,8 @@
 #include <vector>
 #include <sstream>
 #include <map>
-#include <cgraph.h>
-#include <gvc.h>
+#include <graphviz/cgraph.h>
+#include <graphviz/gvc.h>
 using namespace std;
 
 #define Simplified_Output 1
