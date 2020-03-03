@@ -517,14 +517,7 @@ bool UafDetectionPass::AnalyzeInst(Instruction* targetInst, std::shared_ptr<Anal
 		if(!globalContext->continueAAS)
 			return true;
 	}
-//todo delete debug ---
-// if(targetInst->getParent()->getParent()->getName() == "tls_get_message_body")
-// 	if(globalContext->GetInstStr(targetInst).find("%55 = call i32 %45(%struct.ssl_st.6325* %46, i32 22, i32* null, i8* %52, i32 %54, i32 0)") != std::string::npos){
-// 		as->PrintExectutionPath(true);
-// 		OP << "";
-// 		return true;
-// 	}
-// end of debug ---
+
 	// add some tag, such as freed.
 	int shouldContinue = globalContext->ssm->AnalyzeTag(targetInst, as);
 	if(shouldContinue == 0)
@@ -1501,6 +1494,8 @@ void UafDetectionPass::PrintThreadSum(UafDetectionPass* pass, std::string thdStr
 }
 
 bool UafDetectionPass::CheckConstantEqual(Constant* c1, Constant* c2){
+	if(c1 == c2)
+		return true;
 	if(isa<ConstantPointerNull>(c1) && isa<ConstantPointerNull>(c2))
 		return true;
 	if(isa<ConstantPointerNull>(c1) && isa<ConstantInt>(c2))

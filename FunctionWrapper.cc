@@ -147,7 +147,17 @@ size_t FunctionWrapper::GetBasicFieldsInRange(MemoryBlock* mb, uint64_t startpos
 				if(globalContext->printWN){
 					std::string thdStr = GetThreadID();
 					globalContext->opLock.lock();
-					OP << "[Tread-" << thdStr << "] " << "[WRN] [GetBasicFieldsInRange] destSize % eleSize != 0.";
+					OP << "[Tread-" << thdStr << "] " << "[WRN] [GetBasicFieldsInRange] destSize % eleSize != 0.\n";
+					globalContext->opLock.unlock();
+				}
+				as->RecordWarn(GEP_using_Strange_Size);
+				return 0;
+			}
+			if(destsize / eleSize > 1024){
+				if(globalContext->printWN){
+					std::string thdStr = GetThreadID();
+					globalContext->opLock.lock();
+					OP << "[Tread-" << thdStr << "] " << "[WRN] [GetBasicFieldsInRange] too many elements in an array.\n";
 					globalContext->opLock.unlock();
 				}
 				as->RecordWarn(GEP_using_Strange_Size);
@@ -168,8 +178,16 @@ size_t FunctionWrapper::GetBasicFieldsInRange(MemoryBlock* mb, uint64_t startpos
 					return 0; // some error hanppened here (such as destSize % eleSize != 0)
 			}
 		}
-		else
-			assert(0); // this should never happened
+		else{
+			if(globalContext->printWN){
+				std::string thdStr = GetThreadID();
+				globalContext->opLock.lock();
+				OP << "[Tread-" << thdStr << "] " << "[WRN] [GetBasicFieldsInRange] Value type of target memory is neigher a ArrayType nor a struct.\n";
+				globalContext->opLock.unlock();
+			}
+			as->RecordWarn(GEP_without_Suitable_Container);
+			return 0;
+		}
 	}
 	else{ //ie: mbsize - startpos < destsize, this mb is not large enough, we need its container mb's object
 		// (0) check if mb has container

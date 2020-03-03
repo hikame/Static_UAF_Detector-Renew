@@ -39,7 +39,7 @@ uint64_t DataLayoutHelper::GetElementOffsetInStruct(StructType *Ty, unsigned ind
 	elementOffsetRecord[pair] = ret;
 	return ret;
 }
-
+// size in byte
 uint64_t DataLayoutHelper::GetTypeStoreSize(Type *Ty){
 	uint64_t ret = 0;
 	if(!Ty->isSized())

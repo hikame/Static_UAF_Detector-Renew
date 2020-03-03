@@ -56,9 +56,34 @@ void foo0_0(int arg) {
   return;
 }
 
+
+void CRYPTO_free(void *str, const char *file, int line);
+static void (*free_impl)(void *, const char *, int)
+    = CRYPTO_free;
+
+void CRYPTO_free(void *str, const char *file, int line)
+{
+    if (free_impl != NULL && free_impl != &CRYPTO_free) {
+        free_impl(str, file, line);
+        return;
+    }
+
+    free(str);
+}
+
+void foo3(){
+  char* buf = malloc(10);
+  if(buf == NULL) 
+    return;
+  CRYPTO_free(buf, NULL, 0);
+  printf("%s", buf);  // sink here
+}
+
 int main(int argc, char** argv) {
   if(argc)
     foo0_0(argc + 1);
-  else
+  else if(argc + 1)
     foo0_1(argc + 1);
+  else
+    foo3();
 }

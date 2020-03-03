@@ -293,7 +293,7 @@ int main(int argc, char **argv)
     StartMethod = targetMethodSR.str();
     StringRef tmStep1 = TargetMethodS1.getValue();
     StringRef tmStep2 = TargetMethodS2.getValue();
-    GlobalCtx.trustGlobalInit = (TGI.getValue() == "true");
+    GlobalCtx.trustGlobalInit = (TGI.getValue() != "false");
     GlobalCtx.continueAAS = (CAAS.getValue() == "true");
     GlobalCtx.printDB = (PRT_DB.getValue() == "true");
     GlobalCtx.printWN = (PRT_WARNING.getValue() == "true");
