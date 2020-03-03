@@ -1,3 +1,3 @@
 LEVEL = ..
-SRCS = hello.c foo.c
+SRCS = hello.c
 include $(LEVEL)/Makefile.inc
