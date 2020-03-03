@@ -156,7 +156,7 @@ void SetBasicBlockLabel(std::string line, bool important){
 	stringstream labelStream;
 	labelStream << "L: " << str_replace(spResult[0], ",", "\\l&");
 	if(spResult[1].length() > 0){
-		labelStream << "\\l!W! " << spResult[1].substr(1);
+		labelStream << "\\l(W: " << spResult[1].substr(1) << ")";
 	}
 
 	std::string todel = labelStream.str();

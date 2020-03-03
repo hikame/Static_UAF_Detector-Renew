@@ -728,6 +728,14 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::HandleGepIndex(GEPOperator* gep,
 			as->RecordWarn(GEP_with_Symbolic_Index);
 			return NULL;
 		}
+		
+		if(globalContext->printWN){
+			std::lock_guard<std::mutex> lg(globalContext->opLock);
+			OP 	<< "[Tread-" << GetThreadID()
+					<< "] [ERR] Get element with a dynamic index and this index is the last one. Will get all possible elements from the array..."
+					<< globalContext->GetInstStr(gep) << "\n";
+		}
+		as->RecordWarn(GEP_with_Symbolic_Index);
 				
 		nextFR = dcMB->getField(as, indexSV);
 		if(nextFR == NULL)
