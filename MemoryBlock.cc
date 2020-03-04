@@ -220,11 +220,13 @@ std::shared_ptr<FieldRelationship> MemoryBlock::getField(AnalysisState* as, int6
 		if(globalContext->printWN){
 			std::lock_guard<std::mutex> lg(globalContext->opLock);
 			OP 	<< "[Tread-" << GetThreadID()
-					<< "] [ERR] find field from a pointer is a strange operation...";
+					<< "] [WRN] find field from a pointer is a strange operation...\n";
 		}
 		as->RecordWarn(GEP_from_Pointer);
-		eleType = ptType->getElementType();
-		assert(index == 0);  // such as: %24 = getelementptr inbounds i8*, i8** %21, i64 %23 (%23 should be 0)
+		return NULL;
+		// todo delete uselss
+		// eleType = ptType->getElementType();
+		// assert(index == 0);  // such as: %24 = getelementptr inbounds i8*, i8** %21, i64 %23 (%23 should be 0)
 	}
 	else{ // this may happen if some type cast happens while function calls
 		if(globalContext->printWN){
