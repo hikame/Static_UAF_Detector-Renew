@@ -110,7 +110,7 @@ Agnode_t* getNode(std::string node, std::string func){
 	else if(isSource && !isFree && isSink)
 		fillcolor = "mediumpurple";
 	else if(isSource && isFree && !isSink)
-		fillcolor = "lightgreen";
+		fillcolor = "lawngreen";
 	else if(isSource && !isFree && !isSink){
 		fillcolor = "lightskyblue";
 		// fontcolor = "white";

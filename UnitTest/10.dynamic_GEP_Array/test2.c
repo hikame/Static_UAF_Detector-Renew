@@ -28,7 +28,7 @@ void foo0(int argc, SSL* s){
   s->init_msg = s->init_buf->data + 1;
   free(s->init_buf->data);
   unsigned char *p = s->init_msg;
-  ssl_read_bytes(&p[s->init_num]);
+  ssl_read_bytes(&p[s->init_num]);  // sink
 }
 
 extern unsigned long Rand();
@@ -49,7 +49,7 @@ void foo1(SSL* s){
   fake_tls_get_message_header(s, &mt);
   free(s->init_buf->data);
   char* tmp = (char*) s->init_msg;
-  char a = tmp[0];
+  char a = tmp[0];  // sink
 }
 
 int main(argc){

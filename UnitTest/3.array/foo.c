@@ -10,6 +10,8 @@ void foo0(int arg) {
     arg++;  // make it symbolized
     struct InnerStr is[10];
     char* buf = malloc(10);
+    if(buf == NULL)
+      return;
     is[2].buf = buf;
     free(buf);
     if(arg > 10)

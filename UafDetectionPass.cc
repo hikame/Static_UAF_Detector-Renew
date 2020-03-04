@@ -823,12 +823,13 @@ bool UafDetectionPass::AnalyzeGEPInst(GetElementPtrInst* gepInst, std::shared_pt
 
 std::shared_ptr<MemoryBlock> UafDetectionPass::AnalyzeGEPOperator(GEPOperator* gep, AnalysisState* as, 
 		std::map<std::shared_ptr<AnalysisState>, std::shared_ptr<MemoryBlock>>* newASSet){
+	// todo delete useless
 	// check if this gep has record in current as, which means it used to be calculated but failed
-	auto record = as->QueryVariableRecord(gep);
-	if(record != NULL){
-		auto ret = std::dynamic_pointer_cast<MemoryBlock>(record);
-		return ret;
-	}
+	// auto record = as->QueryVariableRecord(gep);
+	// if(record != NULL){
+	// 	auto ret = std::dynamic_pointer_cast<MemoryBlock>(record);
+	// 	return ret;
+	// }
 
 	Value* cvalue = gep->getPointerOperand();
 	auto valueRecord = as->GetVariableRecord(cvalue);
