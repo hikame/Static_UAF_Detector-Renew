@@ -1,11 +1,9 @@
-	BCS=$(SRCS:.c=.bc)
+BCS=$(SRCS:.c=.bc)
 #CLANG_VER=8
 #LLVM_VER=8
 CLANG_VER=6.0
 LLVM_VER=6.0
 
-
-# BUILD_FLAG = -g -O0
 BUILD_FLAG = -pie -fPIC -g -O0 -Wuninitialized 
 
 all: test.bin merged.bc dis

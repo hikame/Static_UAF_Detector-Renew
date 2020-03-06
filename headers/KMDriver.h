@@ -129,9 +129,9 @@ struct GlobalContext {
   	std::fstream fs;
   	char buf[256];
   	fs.open(path, std::ios::in);
-    if(!fs) {
-      printf("[ERR] Failed to open %s!!!\n", path.c_str());
-      printf("[ERR] Continue without any ignored functions...\n");
+    if(!fs) {      
+      // printf("[ERR] Failed to open %s!!!\n", path.c_str());
+      // printf("[ERR] Continue without any ignored functions...\n");
       return;
     }
   	while(!fs.eof()){
