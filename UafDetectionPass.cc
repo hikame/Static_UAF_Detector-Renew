@@ -174,7 +174,8 @@ void UafDetectionPass::DetectUAF(Function* targetFunc){
 		if(runningTasks.size() == 0 && todoTasks.size() == 0){
 			globalContext->shouldQuit = true; // notify watchdog to exit
 			OP 	<< "[Tread-" << GetThreadID() << "] [INF] [" 
-				<< GetCurrentTime() << "] All tasks have finished.\n";
+				<< GetCurrentTime() << "] All " << finished << " tasks have finished. (Error count: " 
+					<< errCount << ").\n";
 		}
 		if(globalContext->shouldQuit){
 			if(runningTasks.size() != 0){
