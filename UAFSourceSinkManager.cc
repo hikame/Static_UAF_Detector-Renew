@@ -142,16 +142,15 @@ int UAFSourceSinkManager::AnalyzeTag(Instruction* inst, std::shared_ptr<Analysis
 			fvalue = ci->getArgOperand(0);
 		else if(isCacheFree)
 			fvalue = ci->getArgOperand(1);
-		auto fvr = analysisState->QueryVariableRecord(fvalue);
+		auto fvr = analysisState->GetVariableRecord(fvalue);
 		auto fmb = std::dynamic_pointer_cast<MemoryBlock>(fvr);
 		if(fmb == NULL){
 			if(PointerType* pt = dyn_cast<PointerType>(fvalue->getType())){
-				if(auto fsv = std::dynamic_pointer_cast<SymbolicValue>(fvr)){
-					auto ctp = pt->getElementType();
-					auto size = globalContext->dlHelper->GetTypeStoreSize(ctp);
-					fmb = std::shared_ptr<MemoryBlock>(new MemoryBlock(Heap, globalContext, size, ctp, true));
+				auto ctp = pt->getElementType();
+				auto size = globalContext->dlHelper->GetTypeStoreSize(ctp);
+				fmb = std::shared_ptr<MemoryBlock>(new MemoryBlock(Heap, globalContext, size, ctp, true));
+				if(auto fsv = std::dynamic_pointer_cast<SymbolicValue>(fvr))
 					analysisState->MergeFakeValueRecord(fmb, fsv);
-				}
 			}
 		}
 		if(fmb == NULL){
