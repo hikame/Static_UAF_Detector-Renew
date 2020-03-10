@@ -244,7 +244,7 @@ void* UafDetectionPass::SysMemWatchdog(void* arg){
 		fseek(fd, 0, SEEK_SET);
 		char line_buff[128];
 		char name[64];
-		long long tmp = -1, memtotal = -1, memfree = -1, swaptotal = -1, swapfree = -1;
+		long long tmp = -1, memtotal = -1, memvailable = -1, swaptotal = -1, swapfree = -1;
 		while(true){
 			char* ret = fgets(line_buff,sizeof(line_buff),fd);
 			if(ret == NULL){
@@ -254,14 +254,14 @@ void* UafDetectionPass::SysMemWatchdog(void* arg){
 			sscanf(line_buff,"%s %lld", name, &tmp);
 			if(strcmp(name, "MemTotal:") == 0)
 				memtotal = tmp;
-			else if(strcmp(name, "MemFree:") == 0)
-				memfree = tmp;
+			else if(strcmp(name, "MemAvailable:") == 0)
+				memvailable = tmp;
 			else if(strcmp(name, "SwapTotal:") == 0)
 				swaptotal = tmp;
 			else if(strcmp(name, "SwapFree:") == 0)
 				swapfree = tmp;
-			if(memtotal != -1 && memfree != -1 && swaptotal != -1 && swapfree != -1){
-				double perc = (memfree + swapfree) * 100 / (memtotal + swaptotal);
+			if(memtotal != -1 && memvailable != -1 && swaptotal != -1 && swapfree != -1){
+				double perc = (memvailable + swapfree) * 100 / (memtotal + swaptotal);
 				gc->memAvaliable = (perc > gc->MemThreadHold);
 				break;
 			}
@@ -723,7 +723,7 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::HandleGepIndex(GEPOperator* gep,
 			if(globalContext->printWN){
 				std::lock_guard<std::mutex> lg(globalContext->opLock);
 				OP 	<< "[Tread-" << GetThreadID()
-						<< "] [ERR] Get element with a dynamic index and this index is not the last one. Not support currently..."
+						<< "] [WRN] Get element with a dynamic index and this index is not the last one. Not support currently..."
 						<< globalContext->GetInstStr(gep) << "\n";
 			}
 			as->RecordWarn(GEP_with_Symbolic_Index);
@@ -733,7 +733,7 @@ std::shared_ptr<MemoryBlock> UafDetectionPass::HandleGepIndex(GEPOperator* gep,
 		if(globalContext->printWN){
 			std::lock_guard<std::mutex> lg(globalContext->opLock);
 			OP 	<< "[Tread-" << GetThreadID()
-					<< "] [ERR] Get element with a dynamic index and this index is the last one. Will get all possible elements from the array..."
+					<< "] [WRN] Get element with a dynamic index and this index is the last one. Will get all possible elements from the array..."
 					<< globalContext->GetInstStr(gep) << "\n";
 		}
 		as->RecordWarn(GEP_with_Symbolic_Index);
@@ -1019,11 +1019,13 @@ bool UafDetectionPass::AnalyzeCastInst(CastInst* ci, std::shared_ptr<AnalysisSta
 				as->MergeFakeValueRecord(mbSP, sv);
 				mb = mbSP;
 			}
-			// if(mb != NULL)
-			// 	mb->resetType(ct);   // we need to reset but we cannot handle the memory blocks very well...
+
+			if(isa<StructType>(ct) && 
+					isa<IntegerType>(mb->valueType))
+				mb->resetType(ct);   // we need to reset but we cannot handle the memory blocks very well...
 		}
 	}
-	as->AddLocalVariableRecord(newvalue, orgVR);
+	as->AddLocalVariableRecord(newvalue, mb);
 	return false;
 }
 

@@ -232,7 +232,7 @@ std::shared_ptr<FieldRelationship> MemoryBlock::getField(AnalysisState* as, int6
 		if(globalContext->printWN){
 			std::lock_guard<std::mutex> lg(globalContext->opLock);
 			OP 	<< "[Tread-" << GetThreadID()
-					<< "] [ERR] find field from a memoryblock which is not a array or struct or even a pointer...";  
+					<< "] [ERR] find field from a memoryblock which is not a array or struct or even a pointer...\n";  
 		}
 		as->RecordWarn(GEP_from_Strange_Type);
  		return NULL;

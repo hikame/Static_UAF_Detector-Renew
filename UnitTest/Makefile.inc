@@ -5,6 +5,9 @@ CLANG_VER=6.0
 LLVM_VER=6.0
 
 BUILD_FLAG = -pie -fPIC -g -O0 -Wuninitialized 
+ifeq ($(TARGET), )
+	TARGET = main
+endif
 
 all: test.bin merged.bc dis
 
@@ -29,12 +32,9 @@ show:
 	code ./*_normal.png ./*.c
 
 test: merged.bc
-	kmdriver_dbg -bbAnalyzeLimit 2 -cplimit 10 -ctn false -printTC true -printER true -printDB true -printWN true -tm main -suaf -o "$(PWD)" -ifs /home/kame/workspace/Static_UAF_Detector/KMDriver_v5/ignored_function_list.conf "$(PWD)/merged.bc"
+	kmdriver_dbg -bbAnalyzeLimit 2 -cplimit 10 -ctn false -printTC true -printER true -printDB true -printWN true -tm $(TARGET) -suaf -o "$(PWD)" "$(PWD)/merged.bc"
 
 retest: clean test dis show 
-
-help:
-	echo "kmdriver_dbg -cplimit 10 -ctn false -printER true -printDB true -printEP true -printWN true -tm main -suaf -o \"$(PWD)\" -ifs /home/kame/workspace/Static_UAF_Detector/KMDriver_v5/ignored_function_list.conf \"$(PWD)/merged.bc\""
 
 clean:
 	@rm -rf *.bin *.bc *.ll *.kmd *.png

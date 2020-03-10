@@ -1,0 +1,180 @@
+clang-6.0 -pie -fPIC -g -O0 -Wuninitialized  -emit-llvm -c foo.c 
+clang: warning: argument unused during compilation: '-pie' [-Wunused-command-line-argument]
+llvm-link-6.0 foo.bc -o merged.bc 
+kmdriver_dbg -bbAnalyzeLimit 2 -cplimit 10 -ctn false -printTC true -printER true -printDB true -printWN true -tm zipClose2_MZ -suaf -o "/home/kame/workspace/Static_UAF_Detector/UnitTest/6.calls/6.5callcasts" "/home/kame/workspace/Static_UAF_Detector/UnitTest/6.calls/6.5callcasts/merged.bc"
+[Tread-7f6e483a25c0]  Total 1 file(s)
+[Tread-7f6e483a25c0] @ [Tue Mar 10 12:27:17 2020] [INF] Target Method is: zipClose2_MZ
+[UAFDetection] Initializing 1 modules .
+[UAFDetection / 1] [/home/kame/workspace/Static_UAF_Detector/UnitTest/6.calls/6.5callcasts/merged.bc]
+[Tread-7f6e46a0f700] [INF] System memory watchdog started @ Tue Mar 10 12:27:17 2020.
+[Tread-7f6e483a25c0] [DBG] Create thread-7f6e3e20e700 for next basic block: (0x1457360)zipClose2_MZ @ 72,74-76,78, for reason: Start
+[Tread-7f6e3e20e700] [DBG] THREAD STARTED @ Tue Mar 10 12:27:17 2020
+[Tread-7f6e3e20e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e3e20e700] [EXP] ============================================
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %4 = alloca i8*, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %5 = alloca i8*, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %6 = alloca i16, align 2
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %7 = alloca %struct.mz_compat_s*, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   store i8* %0, i8** %4, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   store i8* %1, i8** %5, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   store i16 %2, i16* %6, align 2
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %8 = load i8*, i8** %4, align 8, !dbg !88
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %9 = bitcast i8* %8 to %struct.mz_compat_s*, !dbg !89
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   store %struct.mz_compat_s* %9, %struct.mz_compat_s** %7, align 8, !dbg !87
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %10 = load %struct.mz_compat_s*, %struct.mz_compat_s** %7, align 8, !dbg !90
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %11 = getelementptr inbounds %struct.mz_compat_s, %struct.mz_compat_s* %10, i32 0, i32 1, !dbg !91
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %12 = load i8*, i8** %11, align 8, !dbg !91
+[Tread-7f6e3e20e700] [DBG] Generate fake value for memory block.
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %13 = load i8*, i8** %5, align 8, !dbg !92
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %14 = call i32 @mz_zip_set_comment(i8* %12, i8* %13), !dbg !93
+[Tread-7f6e3e20e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e3e20e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e3e20e700] [EXP] ============================================
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   %3 = alloca i8*, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   %4 = alloca i8*, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   %5 = alloca %struct.mz_zip_s*, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   store i8* %0, i8** %3, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   store i8* %1, i8** %4, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   %6 = load i8*, i8** %3, align 8, !dbg !85
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   %7 = bitcast i8* %6 to %struct.mz_zip_s*, !dbg !86
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   store %struct.mz_zip_s* %7, %struct.mz_zip_s** %5, align 8, !dbg !84
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   %8 = load %struct.mz_zip_s*, %struct.mz_zip_s** %5, align 8, !dbg !87
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   %9 = getelementptr inbounds %struct.mz_zip_s, %struct.mz_zip_s* %8, i32 0, i32 23, !dbg !88
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   %10 = load i8*, i8** %9, align 8, !dbg !88
+[Tread-7f6e3e20e700] [DBG] Generate fake value for memory block.
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   call void @free(i8* %10) #3, !dbg !89
+[Tread-7f6e3e20e700] [DBG] [Free] A Fake Memory is Freed by   call void @free(i8* %10) #3, !dbg !89
+[Tread-7f6e3e20e700] [DBG] [Free] Current Execute Path is: 
+[Tread-7f6e3e20e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e3e20e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e3e20e700] [EXP] ============================================
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1449230 (mz_zip_set_comment):   ret i32 0, !dbg !90
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %15 = load %struct.mz_compat_s*, %struct.mz_compat_s** %7, align 8, !dbg !94
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %16 = getelementptr inbounds %struct.mz_compat_s, %struct.mz_compat_s* %15, i32 0, i32 1, !dbg !95
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %17 = load i8*, i8** %16, align 8, !dbg !95
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   %18 = call i32 @mz_zip_close(i8* %17), !dbg !96
+[Tread-7f6e3e20e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e3e20e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e3e20e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - Call
+[Tread-7f6e3e20e700] [EXP] ============================================
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   %2 = alloca i8*, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   %3 = alloca %struct.mz_zip_s*, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   store i8* %0, i8** %2, align 8
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   %4 = load i8*, i8** %2, align 8, !dbg !81
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   %5 = bitcast i8* %4 to %struct.mz_zip_s*, !dbg !82
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   store %struct.mz_zip_s* %5, %struct.mz_zip_s** %3, align 8, !dbg !80
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   %6 = load %struct.mz_zip_s*, %struct.mz_zip_s** %3, align 8, !dbg !83
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   %7 = getelementptr inbounds %struct.mz_zip_s, %struct.mz_zip_s* %6, i32 0, i32 23, !dbg !85
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   %8 = load i8*, i8** %7, align 8, !dbg !85
+[Tread-7f6e3e20e700] [DBG] Generate fake value for memory block.
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   %9 = icmp ne i8* %8, null, !dbg !83
+[Tread-7f6e3e20e700] [DBG] THREAD FINISHED @ Tue Mar 10 12:27:17 2020
+[Tread-7f6e3e20e700] [DBG] Create thread-7f6e4620e700 for next basic block: (0x1454cd0)mz_zip_close @ 61,63-64, for reason: CMP_True
+[Tread-7f6e4620e700] [DBG] THREAD STARTED @ Tue Mar 10 12:27:17 2020
+[Tread-7f6e3e20e700] [DBG] Create thread-7f6e3e20e700 for next basic block: (0x1454cd0)mz_zip_close @ 61,63-64, for reason: CMP_False
+[Tread-7f6e3e20e700] [DBG] THREAD STARTED @ Tue Mar 10 12:27:17 2020
+[Tread-7f6e3e20e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e3e20e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e3e20e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - Call
+[Tread-7f6e3e20e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - CMP_False
+[Tread-7f6e3e20e700] [EXP] ============================================
+[Tread-7f6e4620e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e4620e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - Call
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - CMP_True
+[Tread-7f6e4620e700] [EXP] ============================================
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   br i1 %9, label %10, label %16, !dbg !86
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x1454cd0 (mz_zip_close):   br i1 %9, label %10, label %16, !dbg !86
+[Tread-7f6e3e20e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e3e20e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e3e20e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - Call
+[Tread-7f6e3e20e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - CMP_False
+[Tread-7f6e3e20e700] [EXP] (0x1457310)mz_zip_close @ 69 - Branch_False
+[Tread-7f6e3e20e700] [EXP] ============================================
+[Tread-7f6e4620e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e4620e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - Call
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - CMP_True
+[Tread-7f6e4620e700] [EXP] (0x14572c0)mz_zip_close @ 66-68 - Branch_True
+[Tread-7f6e4620e700] [EXP] ============================================
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457310 (mz_zip_close):   ret i32 0, !dbg !95
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x14572c0 (mz_zip_close):   %11 = load %struct.mz_zip_s*, %struct.mz_zip_s** %3, align 8, !dbg !87
+[Tread-7f6e3e20e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e3e20e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e3e20e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - Call
+[Tread-7f6e3e20e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - CMP_False
+[Tread-7f6e3e20e700] [EXP] (0x1457310)mz_zip_close @ 69 - Branch_False
+[Tread-7f6e3e20e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e3e20e700] [EXP] ============================================
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x14572c0 (mz_zip_close):   %12 = getelementptr inbounds %struct.mz_zip_s, %struct.mz_zip_s* %11, i32 0, i32 23, !dbg !89
+[Tread-7f6e3e20e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   ret i32 0, !dbg !97
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x14572c0 (mz_zip_close):   %13 = load i8*, i8** %12, align 8, !dbg !89
+[Tread-7f6e3e20e700] [DBG] THREAD FINISHED @ Tue Mar 10 12:27:17 2020
+[Tread-7f6e483a25c0] [DBG] This Thread is goning to exits!
+[Tread-7f6e483a25c0] [DBG] The number of the analyzed instructions are: 45.
+[Tread-7f6e483a25c0] [DBG] The number of the analyzed basic blocks are: 7.
+[Tread-7f6e483a25c0] [DBG] The number of the analyzed functions are: 0.
+[Tread-7f6e483a25c0] [DBG] ### Summarization Finished ###
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x14572c0 (mz_zip_close):   call void @free(i8* %13) #3, !dbg !90
+[Tread-7f6e4620e700] [DBG] [Free] A Fake Memory is Freed by   call void @free(i8* %13) #3, !dbg !90
+[Tread-7f6e4620e700] [DBG] [Free] Current Execute Path is: 
+[Tread-7f6e4620e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e4620e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - Call
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - CMP_True
+[Tread-7f6e4620e700] [EXP] (0x14572c0)mz_zip_close @ 66-68 - Branch_True
+[Tread-7f6e4620e700] [EXP] ============================================
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x14572c0 (mz_zip_close):   %14 = load %struct.mz_zip_s*, %struct.mz_zip_s** %3, align 8, !dbg !91
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x14572c0 (mz_zip_close):   %15 = getelementptr inbounds %struct.mz_zip_s, %struct.mz_zip_s* %14, i32 0, i32 23, !dbg !92
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x14572c0 (mz_zip_close):   store i8* null, i8** %15, align 8, !dbg !93
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x14572c0 (mz_zip_close):   br label %16, !dbg !94
+[Tread-7f6e4620e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e4620e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - Call
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - CMP_True
+[Tread-7f6e4620e700] [EXP] (0x14572c0)mz_zip_close @ 66-68 - Branch_True
+[Tread-7f6e4620e700] [EXP] (0x1457310)mz_zip_close @ 69 - Branch_UnCon
+[Tread-7f6e4620e700] [EXP] ============================================
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x1457310 (mz_zip_close):   ret i32 0, !dbg !95
+[Tread-7f6e4620e700] [EXP] ========= Current Execution Path. =========
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Start
+[Tread-7f6e4620e700] [EXP] (0x1449230)mz_zip_set_comment @ 54,56-58 - Call
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - Call
+[Tread-7f6e4620e700] [EXP] (0x1454cd0)mz_zip_close @ 61,63-64 - CMP_True
+[Tread-7f6e4620e700] [EXP] (0x14572c0)mz_zip_close @ 66-68 - Branch_True
+[Tread-7f6e4620e700] [EXP] (0x1457310)mz_zip_close @ 69 - Branch_UnCon
+[Tread-7f6e4620e700] [EXP] (0x1457360)zipClose2_MZ @ 72,74-76,78 - Return
+[Tread-7f6e4620e700] [EXP] ============================================
+[Tread-7f6e4620e700] [TRC] Analyzing Inst: 0x1457360 (zipClose2_MZ):   ret i32 0, !dbg !97
+[Tread-7f6e4620e700] [DBG] THREAD FINISHED @ Tue Mar 10 12:27:17 2020
+[Tread-7f6e483a25c0] [DBG] This Thread is goning to exits!
+[Tread-7f6e483a25c0] [DBG] The number of the analyzed instructions are: 53.
+[Tread-7f6e483a25c0] [DBG] The number of the analyzed basic blocks are: 8.
+[Tread-7f6e483a25c0] [DBG] The number of the analyzed functions are: 0.
+[Tread-7f6e483a25c0] [DBG] ### Summarization Finished ###
+[Tread-7f6e483a25c0] [INF] [Tue Mar 10 12:27:17 2020] All 3 tasks have finished. (Error count: 0).
+[Tread-7f6e483a25c0] [INF] Analysis Finished @ Tue Mar 10 12:27:17 2020
+llvm-dis-6.0 merged.bc
+kmdrawer -e "/home/kame/workspace/Static_UAF_Detector/UnitTest/6.calls/6.5callcasts" ./
+kmdrawer -s -e "/home/kame/workspace/Static_UAF_Detector/UnitTest/6.calls/6.5callcasts" ./
+code ./*_normal.png ./*.c
