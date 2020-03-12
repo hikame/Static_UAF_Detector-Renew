@@ -28,6 +28,7 @@ static std::string HeapAllocFN[] = {
 	"malloc",
 	"kmem_cache_alloc",
 	"__alloc_skb",
+	"tos_mmheap_alloc"  // support for tencent os
 };
 
 // static std::string ManualInitedGlobal[] = {
