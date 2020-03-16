@@ -134,7 +134,11 @@ int UAFSourceSinkManager::AnalyzeTag(Instruction* inst, std::shared_ptr<Analysis
 			return 1;
 	}
 	std::string funcname = func->getName().str();
-	bool isFree = (funcname == "free" || funcname == "kfree" || funcname == "tos_mmheap_free");  // tos_mmheap_free is support for tencent-os
+	bool isFree = (	funcname == "free"
+					|| funcname == "kfree"
+					|| funcname == "tos_mmheap_free"  /* tos_mmheap_free is support for tencent-os */
+					|| funcname == "kfree_skb"
+					|| funcname == "consume_skb"); 
 	bool isCacheFree = (funcname == "kmem_cache_free");
 	if (isFree || isCacheFree){
 		Value* fvalue = NULL;
